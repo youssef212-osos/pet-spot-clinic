@@ -2,6 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 firebase.initializeApp({
+  // Keep the project's real Firebase configuration.
   apiKey: 'AIzaSyA6lpUuP_8KHWzzP89ZIpmVts7ABuogGVw',
   authDomain: 'pet-spot-clinic.firebaseapp.com',
   projectId: 'pet-spot-clinic',
@@ -14,23 +15,38 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  const n = payload.notification || {};
-  const title = n.title || 'Pet Spot Clinic';
-  const options = {
-    body: n.body || 'You have a new update.',
+  // The backend sends data-only FCM messages so this handler owns the
+  // notification display and avoids duplicate browser notifications.
+  const notification = payload.notification || {};
+  const data = payload.data || {};
+  const title = notification.title || data.title || 'Pet Spot Clinic';
+  const body = notification.body || data.body || 'You have a new update.';
+
+  return self.registration.showNotification(title, {
+    body,
     icon: '/pet-spot-clinic/icon-192.png',
     badge: '/pet-spot-clinic/icon-192.png',
-    data: payload.data || {}
-  };
-  self.registration.showNotification(title, options);
+    data
+  });
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(clients.matchAll({type: 'window', includeUncontrolled: true}).then((clientList) => {
-    for (const client of clientList) {
-      if ('focus' in client) return client.focus();
-    }
-    if (clients.openWindow) return clients.openWindow('/pet-spot-clinic/');
-  }));
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      const target = '/pet-spot-clinic/';
+      const existing = clientList.find((client) => {
+        try {
+          return new URL(client.url).pathname.startsWith(target);
+        } catch (_) {
+          return false;
+        }
+      });
+
+      if (existing && 'focus' in existing) return existing.focus();
+      if (clients.openWindow) return clients.openWindow(target);
+      return undefined;
+    })
+  );
 });
