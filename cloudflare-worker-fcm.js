@@ -271,56 +271,120 @@ async function sendTelegram(env, accessToken, type, data) {
   return { sent: results.filter(r => r.ok).length, total: results.length, results };
 }
 
+async function configureTelegramWebhook(env, webhookUrl) {
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN is not configured');
+  const setResult = await telegramApi(env, 'setWebhook', {
+    url: webhookUrl,
+    allowed_updates: ['message'],
+    drop_pending_updates: false
+  });
+  const info = await telegramApi(env, 'getWebhookInfo', {});
+  return {
+    setWebhookOk: !!setResult.ok,
+    url: info.result?.url || webhookUrl,
+    pendingUpdateCount: info.result?.pending_update_count || 0,
+    lastErrorDate: info.result?.last_error_date || null,
+    lastErrorMessage: info.result?.last_error_message || null,
+    maxConnections: info.result?.max_connections || null
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
-    if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
     const url = new URL(request.url);
+    const requestId = crypto.randomUUID();
 
-    if (request.method === 'GET' && url.pathname === '/') return json({ ok: true, service: 'pet-spot-fcm-telegram' });
-    if (request.method === 'GET' && url.pathname === '/telegram') return json({ ok: true, telegram: 'webhook endpoint ready' });
+    if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+
+    console.log('Request received', {
+      requestId,
+      method: request.method,
+      path: url.pathname,
+      userAgent: request.headers.get('user-agent') || ''
+    });
+
+    if (request.method === 'GET' && url.pathname === '/') {
+      return json({ ok: true, service: 'pet-spot-fcm-telegram', requestId });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/telegram') {
+      try {
+        const webhookUrl = `${url.origin}/telegram`;
+        const telegram = await configureTelegramWebhook(env, webhookUrl);
+        return json({ ok: true, telegram, requestId });
+      } catch (error) {
+        console.error('Telegram webhook setup/status error:', { requestId, error: error.message || String(error) });
+        return json({ ok: false, requestId, error: error.message || String(error) }, 500);
+      }
+    }
 
     if (request.method === 'POST' && url.pathname === '/telegram') {
       try {
         const payload = await request.json();
-        // Telegram gets its reply before Firebase registration is attempted.
+        console.log('Telegram webhook update received', {
+          requestId,
+          updateId: payload?.update_id || null,
+          chatId: payload?.message?.chat?.id ? String(payload.message.chat.id) : null,
+          text: payload?.message?.text || ''
+        });
         const result = await handleTelegramUpdate(env, payload);
         const chat = payload?.message?.chat;
         if (chat?.id) {
           const task = registerTelegramChatInBackground(env, chat);
           if (ctx?.waitUntil) ctx.waitUntil(task);
         }
-        return json({ ok: true, ...result });
+        return json({ ok: true, requestId, ...result });
       } catch (error) {
-        console.error('Telegram webhook error:', error);
-        return json({ ok: false, error: error.message || String(error) }, 500);
+        console.error('Telegram webhook error:', { requestId, error: error.message || String(error) });
+        return json({ ok: false, requestId, error: error.message || String(error) }, 500);
       }
     }
 
-    if (request.method !== 'POST' || url.pathname !== '/notify') return json({ ok: false, error: 'Not found' }, 404);
+    if (request.method !== 'POST' || url.pathname !== '/notify') {
+      return json({ ok: false, requestId, error: 'Not found' }, 404);
+    }
 
     const secret = env.NOTIFY_SECRET;
-    if (secret && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) return json({ ok: false, error: 'Unauthorized' }, 401);
+    if (secret && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) {
+      return json({ ok: false, requestId, error: 'Unauthorized' }, 401);
+    }
 
     try {
       const payload = await request.json();
       const type = payload?.type;
       const data = payload?.data || {};
-      if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) return json({ ok: false, error: 'Invalid notification type' }, 400);
+      if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) {
+        return json({ ok: false, requestId, error: 'Invalid notification type' }, 400);
+      }
       const accessToken = await createGoogleAccessToken(getServiceAccount(env));
       let telegram = { skipped: true };
-      try { telegram = await sendTelegram(env, accessToken, type, data); } catch (error) { telegram = { skipped: false, error: error.message }; }
+      try {
+        telegram = await sendTelegram(env, accessToken, type, data);
+      } catch (error) {
+        telegram = { skipped: false, error: error.message };
+      }
       const tokens = await getAdminTokens(env, accessToken);
       const notification = buildNotification(type, data);
       const results = await Promise.all(tokens.map(async item => {
         const result = await sendToToken(env, accessToken, item.token, notification, type);
         const errorText = JSON.stringify(result.result || {});
-        if (!result.ok && (result.status === 404 || errorText.includes('UNREGISTERED'))) await deleteToken(env, accessToken, item.name);
+        if (!result.ok && (result.status === 404 || errorText.includes('UNREGISTERED'))) {
+          await deleteToken(env, accessToken, item.name);
+        }
         return { token: `${item.token.slice(0, 8)}…`, ...result };
       }));
-      return json({ ok: true, type, telegram, sent: results.filter(r => r.ok).length, total: results.length, results });
+      return json({
+        ok: true,
+        requestId,
+        type,
+        telegram,
+        sent: results.filter(r => r.ok).length,
+        total: results.length,
+        results
+      });
     } catch (error) {
-      console.error('Notification error:', error);
-      return json({ ok: false, error: error.message || String(error) }, 500);
+      console.error('Notification error:', { requestId, error: error.message || String(error) });
+      return json({ ok: false, requestId, error: error.message || String(error) }, 500);
     }
   }
 };
