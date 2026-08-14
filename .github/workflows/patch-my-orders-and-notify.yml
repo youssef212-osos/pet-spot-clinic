@@ -1,0 +1,153 @@
+name: Patch My Orders and Notifications
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch site and Worker
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Device-scoped identity: every browser gets one stable local id.
+          marker = "const defaultProducts=["
+          device = """const PETSPOT_DEVICE_ID=(()=>{\n  const key='petspot_device_id';\n  let id=localStorage.getItem(key);\n  if(!id){id=(crypto.randomUUID?crypto.randomUUID():('d-'+Date.now()+'-'+Math.random().toString(36).slice(2)));localStorage.setItem(key,id)}\n  return id;\n})();\nlet myBookings=[];\nlet myOrders=[];\nlet myUnsubs=[];\nlet adminDataInitialized=false;\n\n"""
+          if 'const PETSPOT_DEVICE_ID=' not in s:
+              s=s.replace(marker,device+marker,1)
+
+          # Main + mobile menu.
+          menu_marker='<button onclick="go(\'contact\')" data-i18n="contact">Contact</button><button onclick="adminLogin()" aria-label="Admin login">🔒</button>'
+          menu_new='<button onclick="go(\'contact\')" data-i18n="contact">Contact</button><button onclick="go(\'myActivity\')" data-i18n="myOrdersBookings">My Orders &amp; Bookings</button><button onclick="adminLogin()" aria-label="Admin login">🔒</button>'
+          s=s.replace(menu_marker,menu_new,1)
+          mobile_marker='<button onclick="go(\'contact\')" data-i18n="contact">Contact</button><button onclick="adminLogin()" aria-label="Admin login">🔒</button>\n</div>'
+          mobile_new='<button onclick="go(\'contact\')" data-i18n="contact">Contact</button><button onclick="go(\'myActivity\')" data-i18n="myOrdersBookings">My Orders &amp; Bookings</button><button onclick="adminLogin()" aria-label="Admin login">🔒</button>\n</div>'
+          s=s.replace(mobile_marker,mobile_new,1)
+
+          # Arabic label.
+          s=s.replace("adminEyebrow:'لوحة تحكم الإدارة'", "myOrdersBookings:'طلباتي وحجوزاتي',myActivityTitle:'طلباتي وحجوزاتي',myActivityDesc:'هنا ستظهر فقط الطلبات والحجوزات التي تم إنشاؤها من هذا الجهاز.',myBookings:'حجوزاتي',myOrders:'طلباتي',noMyBookings:'لا توجد حجوزات من هذا الجهاز حتى الآن.',noMyOrders:'لا توجد طلبات من هذا الجهاز حتى الآن.',myDeviceOnly:'هذه الصفحة خاصة بهذا الجهاز فقط.',deleteMyBooking:'إلغاء الحجز',deleteMyOrder:'حذف الطلب',adminEyebrow:'لوحة تحكم الإدارة'",1)
+
+          # Personal page before Admin.
+          admin_section='<section id="admin" class="page">'
+          my_section="""<section id=\"myActivity\" class=\"page\"><div class=\"section\"><div class=\"center\"><span class=\"eyebrow\">PET SPOT</span><h2 data-i18n=\"myActivityTitle\">My Orders &amp; Bookings</h2><p class=\"muted\" data-i18n=\"myActivityDesc\">Only orders and bookings created from this device are shown here.</p><div class=\"notice show\" style=\"display:block\"><strong>🔐</strong> <span data-i18n=\"myDeviceOnly\">This page is private to this device.</span></div></div><h2 data-i18n=\"myBookings\">My Bookings</h2><div id=\"myBookings\"></div><h2 style=\"margin-top:40px\" data-i18n=\"myOrders\">My Orders</h2><div id=\"myOrders\"></div></div></section>\n\n"""
+          if 'id="myActivity"' not in s:
+              s=s.replace(admin_section,my_section+admin_section,1)
+
+          # English fallback map is built from DOM; add data-i18n elements with English text.
+          # Keep the Arabic keys above and make sure the reverse map sees the English labels.
+
+          # Booking record gets device id.
+          old="const data={id:String(Date.now()),service:selectedService,name:f.get('name'),phone:f.get('phone'),petName:f.get('petName'),petType:f.get('petType'),date:f.get('date'),time:f.get('time'),notes:f.get('notes')};"
+          new="const data={id:String(Date.now()),clientId:PETSPOT_DEVICE_ID,service:selectedService,name:f.get('name'),phone:f.get('phone'),petName:f.get('petName'),petType:f.get('petType'),date:f.get('date'),time:f.get('time'),notes:f.get('notes')};"
+          s=s.replace(old,new,1)
+
+          # Order record gets device id.
+          s=s.replace("tx.set(orderRef,{orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});", "tx.set(orderRef,{orderNumber,clientId:PETSPOT_DEVICE_ID,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});",1)
+          s=s.replace("orders.unshift({id:String(Date.now()),orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});", "orders.unshift({id:String(Date.now()),clientId:PETSPOT_DEVICE_ID,orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});",1)
+
+          # Do not load every order/booking into normal visitors. Admin loads the global listeners only after login.
+          pattern=r"\n    db\.collection\('orders'\)[\s\S]*?\n    db\.collection\('bookings'\)[\s\S]*?\n    \},err=>\{\n      console\.error\('Bookings listener:',err\);\n      bookingsCloudReady=false;\n    \}\);"
+          s,n=re.subn(pattern,'',s,count=1)
+
+          # Add admin-only global listeners and personal listeners.
+          insert_before='async function updateProductInCloud(i,changes){'
+          helpers=r'''function initAdminData(){
+  if(!firebaseConfigured || adminDataInitialized)return;
+  adminDataInitialized=true;
+  db.collection('orders').orderBy('createdAt','desc').onSnapshot(snapshot=>{
+    orders=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+    localStorage.setItem('petspotOrders',JSON.stringify(orders));
+    renderAdmin();
+  },err=>console.error('Admin orders listener:',err));
+  db.collection('bookings').orderBy('createdAt','desc').onSnapshot(snapshot=>{
+    cloudBookings=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+    bookingsCloudReady=true;
+    localStorage.setItem('petspotBookings',JSON.stringify(cloudBookings));
+    renderAdmin();
+    updateBookingTimes();
+  },err=>{console.error('Admin bookings listener:',err);bookingsCloudReady=false});
+}
+
+function clearMyListeners(){myUnsubs.forEach(fn=>{try{fn()}catch(_){}});myUnsubs=[]}
+function loadMyActivity(){
+  clearMyListeners();
+  if(!firebaseConfigured){
+    myBookings=getBookings().filter(x=>x.clientId===PETSPOT_DEVICE_ID);
+    myOrders=orders.filter(x=>x.clientId===PETSPOT_DEVICE_ID);
+    renderMyActivity();
+    return;
+  }
+  const ub=db.collection('bookings').where('clientId','==',PETSPOT_DEVICE_ID).onSnapshot(snap=>{
+    myBookings=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    renderMyActivity();
+  },err=>console.error('My bookings listener:',err));
+  const uo=db.collection('orders').where('clientId','==',PETSPOT_DEVICE_ID).onSnapshot(snap=>{
+    myOrders=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+    renderMyActivity();
+  },err=>console.error('My orders listener:',err));
+  myUnsubs.push(ub,uo);
+  renderMyActivity();
+}
+function renderMyActivity(){
+  const b=document.getElementById('myBookings'),o=document.getElementById('myOrders');
+  if(!b||!o)return;
+  b.innerHTML=!myBookings.length?'<p class="muted">'+tr('noMyBookings')+'</p>':myBookings.map(x=>`<article class="booking-card"><div class="booking-head"><strong>${escapeHtml(serviceName(x.service))}</strong><span>${escapeHtml(x.date||'')} ${escapeHtml(x.time||'')}</span></div><div class="booking-grid"><div><b>${lang==='ar'?'الحيوان':'Pet'}</b><br>${escapeHtml(x.petName||'—')}</div><div><b>${lang==='ar'?'الاسم':'Name'}</b><br>${escapeHtml(x.name||'—')}</div><div><b>${lang==='ar'?'الهاتف':'Phone'}</b><br>${escapeHtml(x.phone||'—')}</div><div><b>${lang==='ar'?'النوع':'Type'}</b><br>${escapeHtml(x.petType||'—')}</div></div>${x.notes?`<div class="booking-notes">${escapeHtml(x.notes)}</div>`:''}<button class="btn red" style="margin-top:14px" onclick="deleteMyBooking('${escapeHtml(x.id)}')">${tr('deleteMyBooking')}</button></article>`).join('');
+  o.innerHTML=!myOrders.length?'<p class="muted">'+tr('noMyOrders')+'</p>':myOrders.map(x=>`<article class="booking-card"><div class="booking-head"><strong>${escapeHtml(x.orderNumber||'Order')}</strong><strong>${x.total||0} EGP</strong></div><div class="booking-grid"><div><b>${lang==='ar'?'الاسم':'Name'}</b><br>${escapeHtml(x.customer?.name||'—')}</div><div><b>${lang==='ar'?'الهاتف':'Phone'}</b><br>${escapeHtml(x.customer?.phone||'—')}</div><div><b>${lang==='ar'?'الحالة':'Status'}</b><br>${escapeHtml(x.status||'New')}</div><div><b>${lang==='ar'?'التاريخ':'Date'}</b><br>${x.createdAt?new Date(x.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-US'):'—'}</div></div><div class="booking-notes">${(x.items||[]).map(item=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)"><span>${escapeHtml(productName(item.name))} × ${item.quantity}</span><strong>${item.subtotal} EGP</strong></div>`).join('')}</div><button class="btn red" style="margin-top:14px" onclick="deleteMyOrder('${escapeHtml(x.id)}')">${tr('deleteMyOrder')}</button></article>`).join('');
+}
+async function deleteMyBooking(id){
+  if(!confirm(lang==='ar'?'هل تريد إلغاء هذا الحجز؟':'Cancel this booking?'))return;
+  const item=myBookings.find(x=>String(x.id)===String(id));
+  try{
+    if(firebaseConfigured){const ref=db.collection('bookings').doc(String(id));const snap=await ref.get();if(!snap.exists||snap.data().clientId!==PETSPOT_DEVICE_ID)throw new Error('NOT_YOUR_BOOKING');await ref.delete();}
+    else{setBookings(getBookings().filter(x=>String(x.id)!==String(id)));loadMyActivity()}
+    if(item)try{await notifyPetSpot('booking_removed',item)}catch(e){console.error('Booking removal notification:',e)}
+  }catch(err){console.error(err);alert(lang==='ar'?'تعذر إلغاء الحجز.':'Could not cancel the booking.')}
+}
+async function deleteMyOrder(id){
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الطلب؟':'Delete this order?'))return;
+  const item=myOrders.find(x=>String(x.id)===String(id));
+  try{
+    if(firebaseConfigured){const ref=db.collection('orders').doc(String(id));const snap=await ref.get();if(!snap.exists||snap.data().clientId!==PETSPOT_DEVICE_ID)throw new Error('NOT_YOUR_ORDER');await ref.delete();}
+    else{orders=orders.filter(x=>String(x.id)!==String(id));localStorage.setItem('petspotOrders',JSON.stringify(orders));loadMyActivity()}
+    if(item)try{await notifyPetSpot('order_removed',item)}catch(e){console.error('Order removal notification:',e)}
+  }catch(err){console.error(err);alert(lang==='ar'?'تعذر حذف الطلب.':'Could not delete the order.')}
+}
+
+'''
+          if 'function loadMyActivity()' not in s:
+              s=s.replace(insert_before,helpers+insert_before,1)
+
+          # Admin login starts the global admin listeners.
+          s=s.replace("closeM();\n    go('admin');\n    registerAdminPush();", "closeM();\n    initAdminData();\n    go('admin');\n    registerAdminPush();",1)
+          # Navigation loads only this device's records.
+          s=s.replace("if(id==='admin')renderAdmin()", "if(id==='admin')renderAdmin();if(id==='myActivity')loadMyActivity()",1)
+
+          p.write_text(s,encoding='utf-8')
+
+          # Worker: browser requests from the real GitHub Pages origin are allowed to call /notify.
+          w=Path('cloudflare-worker-fcm.js')
+          ws=w.read_text(encoding='utf-8')
+          old_secret="""    const secret = env.NOTIFY_SECRET;\n    if (secret && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) {\n      return json({ ok: false, requestId, error: 'Unauthorized' }, 401);\n    }"""
+          new_secret="""    const secret = env.NOTIFY_SECRET;\n    const origin = request.headers.get('Origin') || '';\n    const isPetSpotBrowser = origin === 'https://youssef212-osos.github.io';\n    if (secret && !isPetSpotBrowser && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) {\n      return json({ ok: false, requestId, error: 'Unauthorized' }, 401);\n    }"""
+          if old_secret in ws: ws=ws.replace(old_secret,new_secret,1)
+          w.write_text(ws,encoding='utf-8')
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html cloudflare-worker-fcm.js
+          git diff --cached --quiet || git commit -m "feat: add device-scoped my orders and fix notifications"
+          git push
