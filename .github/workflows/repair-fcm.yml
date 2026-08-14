@@ -19,27 +19,27 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Patch index.html for FCM notifications
-        shell: python
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path('index.html')
           text = path.read_text(encoding='utf-8')
 
-          notify_fn = r'''\nconst PETSPOT_FCM_WORKER_URL='https://pet-spot-fcm.youssefosama5901.workers.dev/notify';\nasync function notifyPetSpot(type,data){\n  if(!firebaseConfigured)return null;\n  const response=await fetch(PETSPOT_FCM_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})});\n  const result=await response.json().catch(()=>({}));\n  if(!response.ok||result.ok===false)throw new Error(result.error||('FCM worker HTTP '+response.status));\n  return result;\n}\n'''
+          notify_fn = """\nconst PETSPOT_FCM_WORKER_URL='https://pet-spot-fcm.youssefosama5901.workers.dev/notify';\nasync function notifyPetSpot(type,data){\n  if(!firebaseConfigured)return null;\n  const response=await fetch(PETSPOT_FCM_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})});\n  const result=await response.json().catch(()=>({}));\n  if(!response.ok||result.ok===false)throw new Error(result.error||('FCM worker HTTP '+response.status));\n  return result;\n}\n"""
 
           if 'const PETSPOT_FCM_WORKER_URL=' not in text:
-              marker = 'function saveCart(){localStorage.setItem(\'petspotCart\',JSON.stringify(cart))}'
+              marker = "function saveCart(){localStorage.setItem('petspotCart',JSON.stringify(cart))}"
               if marker not in text:
                   raise SystemExit('Could not find saveCart marker')
               text = text.replace(marker, marker + notify_fn, 1)
 
-          old_booking = """      await db.collection('bookings').doc(data.id).set({...data,createdAt});"""
+          old_booking = "      await db.collection('bookings').doc(data.id).set({...data,createdAt});"
           new_booking = """      const bookingRecord={...data,createdAt};
       await db.collection('bookings').doc(data.id).set(bookingRecord);
       try{await notifyPetSpot('booking',bookingRecord);}catch(notifyErr){console.error('Booking notification:',notifyErr);}"""
-          if old_booking in text and 'notifyPetSpot(\'booking\'' not in text:
+          if old_booking in text and "notifyPetSpot('booking'" not in text:
               text = text.replace(old_booking, new_booking, 1)
 
           if "const orderNumber='ORD-'+Date.now().toString().slice(-6);" not in text:
@@ -60,6 +60,7 @@ jobs:
               text = text.replace(marker, replacement, 1)
 
           path.write_text(text, encoding='utf-8')
+          PY
 
       - name: Commit patched site
         shell: bash
