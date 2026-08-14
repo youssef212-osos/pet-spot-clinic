@@ -220,6 +220,31 @@ async function telegramApi(env, method, body) {
   return result;
 }
 
+async function sendTelegram(env, accessToken, type, data) {
+  if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
+  const chats = await getTelegramChats(env, accessToken);
+  if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
+  const results = [];
+  for (const chatId of chats) {
+    try {
+      await telegramApi(env, 'sendMessage', {
+        chat_id: chatId,
+        text: telegramText(type, data),
+        parse_mode: 'HTML',
+        disable_web_page_preview: true
+      });
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: true });
+    } catch (error) {
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: false, error: error.message });
+    }
+  }
+  return {
+    sent: results.filter(r => r.ok).length,
+    total: results.length,
+    results
+  };
+}
+
 async function registerTelegramChatInBackground(env, chat) {
   try {
     const serviceAccount = getServiceAccount(env);
