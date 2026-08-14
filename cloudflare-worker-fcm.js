@@ -4,6 +4,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type,X-PetSpot-Notify-Secret'
 };
 
+const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -19,14 +21,36 @@ function base64url(input) {
 }
 
 function pemToArrayBuffer(pem) {
-  const clean = pem
+  const clean = String(pem || '')
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
     .replace(/\s+/g, '');
+  if (!clean) throw new Error('Firebase private key is missing');
   const binary = atob(clean);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes.buffer;
+}
+
+function getServiceAccount(env) {
+  if (env.FIREBASE_SERVICE_ACCOUNT) {
+    const account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+    return {
+      client_email: account.client_email,
+      private_key: account.private_key,
+      project_id: account.project_id || env.FIREBASE_PROJECT_ID
+    };
+  }
+
+  if (env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY && env.FIREBASE_PROJECT_ID) {
+    return {
+      client_email: env.FIREBASE_CLIENT_EMAIL,
+      private_key: env.FIREBASE_PRIVATE_KEY,
+      project_id: env.FIREBASE_PROJECT_ID
+    };
+  }
+
+  throw new Error('Firebase service-account configuration is missing. Set FIREBASE_SERVICE_ACCOUNT or FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY + FIREBASE_PROJECT_ID.');
 }
 
 async function createGoogleAccessToken(serviceAccount) {
@@ -42,7 +66,7 @@ async function createGoogleAccessToken(serviceAccount) {
   const unsigned = `${header}.${claim}`;
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    pemToArrayBuffer(serviceAccount.private_key.replace(/\\n/g, '\n')),
+    pemToArrayBuffer(String(serviceAccount.private_key).replace(/\\n/g, '\n')),
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
     false,
     ['sign']
@@ -70,18 +94,31 @@ async function createGoogleAccessToken(serviceAccount) {
 }
 
 async function getAdminTokens(env, accessToken) {
-  const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/adminPushTokens?pageSize=1000`;
-  const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(`Firestore token read failed: ${JSON.stringify(data)}`);
+  const base = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/adminPushTokens`;
+  const tokens = [];
+  let pageToken = '';
 
-  return (data.documents || []).map(document => ({
-    name: document.name,
-    token: document.fields?.token?.stringValue || '',
-    enabled: document.fields?.enabled?.booleanValue !== false
-  })).filter(x => x.token && x.enabled);
+  do {
+    const url = new URL(base);
+    url.searchParams.set('pageSize', '1000');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Firestore token read failed: ${JSON.stringify(data)}`);
+
+    for (const document of data.documents || []) {
+      const token = document.fields?.token?.stringValue || '';
+      const enabled = document.fields?.enabled?.booleanValue !== false;
+      if (token && enabled) tokens.push({ name: document.name, token });
+    }
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+
+  const seen = new Set();
+  return tokens.filter(item => !seen.has(item.token) && seen.add(item.token));
 }
 
 async function deleteToken(env, accessToken, documentName) {
@@ -89,7 +126,7 @@ async function deleteToken(env, accessToken, documentName) {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  return response.ok;
+  return response.ok || response.status === 404;
 }
 
 function buildNotification(type, data) {
@@ -124,7 +161,7 @@ async function sendToToken(env, accessToken, token, notification, type) {
         notification,
         data: { type: String(type || 'update') },
         webpush: {
-          fcmOptions: { link: 'https://youssef212-osos.github.io/pet-spot-clinic/' }
+          fcmOptions: { link: SITE_URL }
         }
       }
     })
@@ -160,7 +197,7 @@ export default {
         return json({ ok: false, error: 'type must be booking or order' }, 400);
       }
 
-      const serviceAccount = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+      const serviceAccount = getServiceAccount(env);
       const accessToken = await createGoogleAccessToken(serviceAccount);
       const tokens = await getAdminTokens(env, accessToken);
       const notification = buildNotification(type, data);
