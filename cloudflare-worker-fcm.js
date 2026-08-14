@@ -21,12 +21,25 @@ function base64url(input) {
 }
 
 function pemToArrayBuffer(pem) {
-  const clean = String(pem || '')
-    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-    .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\s+/g, '');
+  let value = String(pem ?? '').trim();
+  value = value.replace(/^['"]|['"]$/g, '');
+  value = value.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+
+  const match = value.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
+  if (match) value = match[1];
+
+  const clean = value.replace(/[^A-Za-z0-9+/=]/g, '');
   if (!clean) throw new Error('Firebase private key is missing');
-  const binary = atob(clean);
+  if (clean.length % 4 === 1) throw new Error('Firebase private key has invalid base64 length');
+
+  const padded = clean + '='.repeat((4 - (clean.length % 4)) % 4);
+  let binary;
+  try {
+    binary = atob(padded);
+  } catch (error) {
+    throw new Error(`Firebase private key base64 decode failed: ${error.message || String(error)}`);
+  }
+
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes.buffer;
@@ -62,7 +75,12 @@ async function createGoogleAccessToken(serviceAccount) {
     exp: now + 3600
   }));
   const unsigned = `${header}.${claim}`;
-  const privateKey = String(serviceAccount.private_key || '').replace(/\\n/g, '\n');
+  const privateKey = String(serviceAccount.private_key || '')
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r');
   const key = await crypto.subtle.importKey(
     'pkcs8',
     pemToArrayBuffer(privateKey),
