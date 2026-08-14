@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pet-spot-fcm",
+  "main": "./cloudflare-worker-fcm.js",
+  "compatibility_date": "2026-08-14",
+  "workers_dev": true,
+  "keep_vars": true
+}
