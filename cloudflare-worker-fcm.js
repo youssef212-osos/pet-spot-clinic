@@ -16,33 +16,40 @@ function json(data, status = 200) {
 function base64url(input) {
   const bytes = input instanceof Uint8Array ? input : new TextEncoder().encode(input);
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+// Decode standard base64 without using atob(), which was causing the webhook 500 error.
+function base64ToBytes(value) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean = String(value || '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+  if (!clean) throw new Error('Firebase private key is missing');
+  let bits = 0;
+  let bitCount = 0;
+  const out = [];
+  for (const char of clean.replace(/=+$/g, '')) {
+    const n = alphabet.indexOf(char);
+    if (n < 0) throw new Error('Firebase private key contains invalid base64 characters');
+    bits = (bits << 6) | n;
+    bitCount += 6;
+    if (bitCount >= 8) {
+      bitCount -= 8;
+      out.push((bits >> bitCount) & 255);
+    }
+  }
+  return new Uint8Array(out).buffer;
 }
 
 function pemToArrayBuffer(pem) {
   let value = String(pem ?? '').trim();
   value = value.replace(/^['"]|['"]$/g, '');
   value = value.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-
   const match = value.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
   if (match) value = match[1];
-
-  const clean = value.replace(/[^A-Za-z0-9+/=]/g, '');
+  const clean = value.replace(/[^A-Za-z0-9+/_=-]/g, '');
   if (!clean) throw new Error('Firebase private key is missing');
-  if (clean.length % 4 === 1) throw new Error('Firebase private key has invalid base64 length');
-
-  const padded = clean + '='.repeat((4 - (clean.length % 4)) % 4);
-  let binary;
-  try {
-    binary = atob(padded);
-  } catch (error) {
-    throw new Error(`Firebase private key base64 decode failed: ${error.message || String(error)}`);
-  }
-
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
+  return base64ToBytes(clean);
 }
 
 function getServiceAccount(env) {
@@ -102,7 +109,7 @@ async function createGoogleAccessToken(serviceAccount) {
       assertion
     })
   });
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.access_token) throw new Error(`Google OAuth failed: ${JSON.stringify(data)}`);
   return data.access_token;
 }
@@ -112,15 +119,14 @@ function firestoreBase(env, collection) {
 }
 
 async function getAdminTokens(env, accessToken) {
-  const base = firestoreBase(env, 'adminPushTokens');
   const tokens = [];
   let pageToken = '';
   do {
-    const url = new URL(base);
+    const url = new URL(firestoreBase(env, 'adminPushTokens'));
     url.searchParams.set('pageSize', '1000');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(`Firestore token read failed: ${JSON.stringify(data)}`);
     for (const document of data.documents || []) {
       const token = document.fields?.token?.stringValue || '';
@@ -144,15 +150,13 @@ async function deleteToken(env, accessToken, documentName) {
 async function saveTelegramChat(env, accessToken, chat) {
   const chatId = String(chat.id);
   const url = `${firestoreBase(env, 'telegramChats')}/${encodeURIComponent(chatId)}`;
-  const body = {
-    fields: {
-      chatId: { integerValue: chatId },
-      username: { stringValue: String(chat.username || '') },
-      firstName: { stringValue: String(chat.first_name || '') },
-      lastName: { stringValue: String(chat.last_name || '') },
-      updatedAt: { timestampValue: new Date().toISOString() }
-    }
-  };
+  const body = { fields: {
+    chatId: { integerValue: chatId },
+    username: { stringValue: String(chat.username || '') },
+    firstName: { stringValue: String(chat.first_name || '') },
+    lastName: { stringValue: String(chat.last_name || '') },
+    updatedAt: { timestampValue: new Date().toISOString() }
+  }};
   const response = await fetch(url, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -160,19 +164,17 @@ async function saveTelegramChat(env, accessToken, chat) {
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(`Firestore Telegram chat save failed: ${JSON.stringify(result)}`);
-  return result;
 }
 
 async function getTelegramChats(env, accessToken) {
   const chats = [];
   let pageToken = '';
-  const base = firestoreBase(env, 'telegramChats');
   do {
-    const url = new URL(base);
+    const url = new URL(firestoreBase(env, 'telegramChats'));
     url.searchParams.set('pageSize', '1000');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(`Firestore Telegram chat read failed: ${JSON.stringify(data)}`);
     for (const document of data.documents || []) {
       const id = document.fields?.chatId?.integerValue || document.fields?.chatId?.stringValue || '';
@@ -186,43 +188,23 @@ async function getTelegramChats(env, accessToken) {
 
 function buildNotification(type, data) {
   const name = data.name || data.customerName || data.customer?.name || 'Customer';
-  if (type === 'booking_removed') {
-    const service = data.service || data.serviceName || 'Booking';
-    return { title: '➖ Booking Removed', body: `${name} removed ${service}` };
-  }
-  if (type === 'booking') {
-    const service = data.service || data.serviceName || 'Booking';
-    return { title: '➕ New Booking', body: `${name} booked ${service}` };
-  }
+  if (type === 'booking_removed') return { title: '➖ Booking Removed', body: `${name} removed ${data.service || data.serviceName || 'Booking'}` };
+  if (type === 'booking') return { title: '➕ New Booking', body: `${name} booked ${data.service || data.serviceName || 'Booking'}` };
   if (type === 'order_removed') return { title: '➖ Order Removed', body: `${name} removed an order` };
   const number = data.orderNumber ? ` #${data.orderNumber}` : '';
   return { title: '➕ New Order', body: `${name} placed a new order${number}` };
 }
 
-async function sendToToken(env, accessToken, token, notification, type) {
-  const url = `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/messages:send`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: {
-        token,
-        notification,
-        data: { type: String(type || 'update') },
-        webpush: { fcmOptions: { link: SITE_URL } }
-      }
-    })
-  });
-  const result = await response.json().catch(() => ({}));
-  return { ok: response.ok, status: response.status, result };
+function escapeHtml(value) {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function telegramText(type, data) {
   const n = buildNotification(type, data);
-  const lines = [`<b>Pet Spot Clinic</b>`, `<b>${n.title}</b>`, n.body];
-  if (data.orderNumber) lines.push(`Order: <code>${String(data.orderNumber)}</code>`);
-  if (data.date) lines.push(`Date: ${String(data.date)}`);
-  if (data.time) lines.push(`Time: ${String(data.time)}`);
+  const lines = ['<b>Pet Spot Clinic</b>', `<b>${escapeHtml(n.title)}</b>`, escapeHtml(n.body)];
+  if (data.orderNumber) lines.push(`Order: <code>${escapeHtml(data.orderNumber)}</code>`);
+  if (data.date) lines.push(`Date: ${escapeHtml(data.date)}`);
+  if (data.time) lines.push(`Time: ${escapeHtml(data.time)}`);
   return lines.join('\n');
 }
 
@@ -238,35 +220,20 @@ async function telegramApi(env, method, body) {
   return result;
 }
 
-async function sendTelegram(env, accessToken, type, data) {
-  if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
-  const chats = await getTelegramChats(env, accessToken);
-  if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
-  const results = [];
-  for (const chatId of chats) {
-    try {
-      await telegramApi(env, 'sendMessage', {
-        chat_id: chatId,
-        text: telegramText(type, data),
-        parse_mode: 'HTML',
-        disable_web_page_preview: true
-      });
-      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: true });
-    } catch (error) {
-      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: false, error: error.message });
-    }
-  }
-  return {
-    sent: results.filter(r => r.ok).length,
-    total: results.length,
-    results
-  };
+async function sendToToken(env, accessToken, token, notification, type) {
+  const url = `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/messages:send`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: { token, notification, data: { type: String(type || 'update') }, webpush: { fcmOptions: { link: SITE_URL } } } })
+  });
+  const result = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, result };
 }
 
 async function registerTelegramChatInBackground(env, chat) {
   try {
-    const serviceAccount = getServiceAccount(env);
-    const accessToken = await createGoogleAccessToken(serviceAccount);
+    const accessToken = await createGoogleAccessToken(getServiceAccount(env));
     await saveTelegramChat(env, accessToken, chat);
     console.log('Telegram chat registered:', String(chat.id));
   } catch (error) {
@@ -277,25 +244,12 @@ async function registerTelegramChatInBackground(env, chat) {
 async function handleTelegramUpdate(env, update) {
   const message = update?.message;
   if (!message?.chat?.id) return { ignored: true };
-
   const chat = message.chat;
   const text = String(message.text || '').trim();
-  let reply;
-
-  if (text.startsWith('/start')) {
-    reply = '✅ تم ربط Pet Spot Clinic بنجاح. من الآن هيوصلك إشعار عند إضافة أو حذف Order أو Booking.';
-  } else if (text.startsWith('/id')) {
-    reply = `Chat ID: ${chat.id}`;
-  } else {
-    reply = '✅ البوت شغال. استخدم /start لربط المحادثة بالإشعارات.';
-  }
-
-  await telegramApi(env, 'sendMessage', {
-    chat_id: chat.id,
-    text: reply,
-    disable_web_page_preview: true
-  });
-
+  let reply = '✅ البوت شغال. استخدم /start لربط المحادثة بالإشعارات.';
+  if (text.startsWith('/start')) reply = '✅ تم ربط Pet Spot Clinic بنجاح. من الآن هيوصلك إشعار عند إضافة أو حذف Order أو Booking.';
+  if (text.startsWith('/id')) reply = `Chat ID: ${chat.id}`;
+  await telegramApi(env, 'sendMessage', { chat_id: chat.id, text: reply, disable_web_page_preview: true });
   return { registered: true, chatId: String(chat.id), text };
 }
 
@@ -304,23 +258,18 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
     const url = new URL(request.url);
 
-    if (request.method === 'GET' && url.pathname === '/') {
-      return json({ ok: true, service: 'pet-spot-fcm-telegram' });
-    }
-
-    if (request.method === 'GET' && url.pathname === '/telegram') {
-      return json({ ok: true, telegram: 'webhook endpoint ready' });
-    }
+    if (request.method === 'GET' && url.pathname === '/') return json({ ok: true, service: 'pet-spot-fcm-telegram' });
+    if (request.method === 'GET' && url.pathname === '/telegram') return json({ ok: true, telegram: 'webhook endpoint ready' });
 
     if (request.method === 'POST' && url.pathname === '/telegram') {
       try {
         const payload = await request.json();
+        // Reply to Telegram first. Firebase is only used afterward for chat registration.
         const result = await handleTelegramUpdate(env, payload);
         const chat = payload?.message?.chat;
         if (chat?.id) {
           const task = registerTelegramChatInBackground(env, chat);
           if (ctx?.waitUntil) ctx.waitUntil(task);
-          else await task;
         }
         return json({ ok: true, ...result });
       } catch (error) {
@@ -329,49 +278,48 @@ export default {
       }
     }
 
-    if (request.method !== 'POST' || url.pathname !== '/notify') {
-      return json({ ok: false, error: 'Not found' }, 404);
-    }
+    if (request.method !== 'POST' || url.pathname !== '/notify') return json({ ok: false, error: 'Not found' }, 404);
 
     const secret = env.NOTIFY_SECRET;
-    if (secret && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) {
-      return json({ ok: false, error: 'Unauthorized' }, 401);
-    }
+    if (secret && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     try {
       const payload = await request.json();
       const type = payload?.type;
       const data = payload?.data || {};
-      if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) {
-        return json({ ok: false, error: 'Invalid notification type' }, 400);
-      }
+      if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) return json({ ok: false, error: 'Invalid notification type' }, 400);
 
-      const serviceAccount = getServiceAccount(env);
-      const accessToken = await createGoogleAccessToken(serviceAccount);
-      const telegram = await sendTelegram(env, accessToken, type, data);
+      const accessToken = await createGoogleAccessToken(getServiceAccount(env));
+      let telegram = { skipped: true };
+      try { telegram = await sendTelegram(env, accessToken, type, data); } catch (error) { telegram = { skipped: false, error: error.message }; }
       const tokens = await getAdminTokens(env, accessToken);
       const notification = buildNotification(type, data);
       const results = await Promise.all(tokens.map(async item => {
         const result = await sendToToken(env, accessToken, item.token, notification, type);
         const errorText = JSON.stringify(result.result || {});
-        if (!result.ok && (result.status === 404 || errorText.includes('UNREGISTERED'))) {
-          await deleteToken(env, accessToken, item.name);
-        }
+        if (!result.ok && (result.status === 404 || errorText.includes('UNREGISTERED'))) await deleteToken(env, accessToken, item.name);
         return { token: `${item.token.slice(0, 8)}…`, ...result };
       }));
-      const sent = results.filter(r => r.ok).length;
-      return json({
-        ok: true,
-        type,
-        telegram,
-        total: tokens.length,
-        sent,
-        failed: tokens.length - sent,
-        results
-      });
+      return json({ ok: true, type, telegram, sent: results.filter(r => r.ok).length, total: results.length, results });
     } catch (error) {
-      console.error(error);
+      console.error('Notification error:', error);
       return json({ ok: false, error: error.message || String(error) }, 500);
     }
   }
 };
+
+async function sendTelegram(env, accessToken, type, data) {
+  if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
+  const chats = await getTelegramChats(env, accessToken);
+  if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
+  const results = [];
+  for (const chatId of chats) {
+    try {
+      await telegramApi(env, 'sendMessage', { chat_id: chatId, text: telegramText(type, data), parse_mode: 'HTML', disable_web_page_preview: true });
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: true });
+    } catch (error) {
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: false, error: error.message });
+    }
+  }
+  return { sent: results.filter(r => r.ok).length, total: results.length, results };
+}
