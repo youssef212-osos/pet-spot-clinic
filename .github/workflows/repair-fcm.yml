@@ -1,12 +1,6 @@
 name: Wire Pet Spot FCM
 
-on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/repair-fcm.yml'
-      - 'cloudflare-worker-fcm.js'
-  workflow_dispatch:
+on: push
 
 permissions:
   contents: write
@@ -15,55 +9,10 @@ jobs:
   patch-site:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Patch index.html for FCM notifications
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('index.html')
-          text = path.read_text(encoding='utf-8')
-
-          notify_fn = """\nconst PETSPOT_FCM_WORKER_URL='https://pet-spot-fcm.youssefosama5901.workers.dev/notify';\nasync function notifyPetSpot(type,data){\n  if(!firebaseConfigured)return null;\n  const response=await fetch(PETSPOT_FCM_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})});\n  const result=await response.json().catch(()=>({}));\n  if(!response.ok||result.ok===false)throw new Error(result.error||('FCM worker HTTP '+response.status));\n  return result;\n}\n"""
-
-          if 'const PETSPOT_FCM_WORKER_URL=' not in text:
-              marker = "function saveCart(){localStorage.setItem('petspotCart',JSON.stringify(cart))}"
-              if marker not in text:
-                  raise SystemExit('Could not find saveCart marker')
-              text = text.replace(marker, marker + notify_fn, 1)
-
-          old_booking = "      await db.collection('bookings').doc(data.id).set({...data,createdAt});"
-          new_booking = """      const bookingRecord={...data,createdAt};
-      await db.collection('bookings').doc(data.id).set(bookingRecord);
-      try{await notifyPetSpot('booking',bookingRecord);}catch(notifyErr){console.error('Booking notification:',notifyErr);}"""
-          if old_booking in text and "notifyPetSpot('booking'" not in text:
-              text = text.replace(old_booking, new_booking, 1)
-
-          if "const orderNumber='ORD-'+Date.now().toString().slice(-6);" not in text:
-              marker = "  const orderRef=db.collection('orders').doc();\n"
-              replacement = marker + "  const orderNumber='ORD-'+Date.now().toString().slice(-6);\n  const orderCreatedAt=new Date().toISOString();\n"
-              if marker not in text:
-                  raise SystemExit('Could not find orderRef marker')
-              text = text.replace(marker, replacement, 1)
-
-          text = text.replace("orderNumber:'ORD-'+Date.now().toString().slice(-6),customer,items:orderItems,total,status:'New',createdAt:new Date().toISOString()", "orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt", 1)
-          text = text.replace("id:String(Date.now()),orderNumber:'ORD-'+Date.now().toString().slice(-6),customer,items:orderItems,total,status:'New',createdAt:new Date().toISOString()", "id:String(Date.now()),orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt", 1)
-
-          if "notifyPetSpot('order'" not in text:
-              marker = "  cart=[];saveCart();closeOrderModal();renderCart();renderProducts();renderAdmin();"
-              replacement = "  if(firebaseConfigured){try{await notifyPetSpot('order',{orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});}catch(notifyErr){console.error('Order notification:',notifyErr);}}\n" + marker
-              if marker not in text:
-                  raise SystemExit('Could not find order success marker')
-              text = text.replace(marker, replacement, 1)
-
-          path.write_text(text, encoding='utf-8')
-          PY
-
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        run: python3 scripts/patch_fcm.py
       - name: Commit patched site
-        shell: bash
         run: |
           if git diff --quiet -- index.html; then
             echo 'index.html already wired for FCM.'
