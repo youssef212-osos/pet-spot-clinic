@@ -64,8 +64,12 @@ async function createGoogleAccessToken(serviceAccount) {
   return data.access_token;
 }
 
+function firestoreBase(env, collection) {
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/${collection}`;
+}
+
 async function getAdminTokens(env, accessToken) {
-  const base = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/adminPushTokens`;
+  const base = firestoreBase(env, 'adminPushTokens');
   const tokens = [];
   let pageToken = '';
   do {
@@ -89,6 +93,49 @@ async function getAdminTokens(env, accessToken) {
 async function deleteToken(env, accessToken, documentName) {
   const response = await fetch(`https://firestore.googleapis.com/v1/${documentName}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } });
   return response.ok || response.status === 404;
+}
+
+async function saveTelegramChat(env, accessToken, chat) {
+  const chatId = String(chat.id);
+  const url = `${firestoreBase(env, 'telegramChats')}/${encodeURIComponent(chatId)}`;
+  const body = {
+    fields: {
+      chatId: { integerValue: chatId },
+      username: { stringValue: String(chat.username || '') },
+      firstName: { stringValue: String(chat.first_name || '') },
+      lastName: { stringValue: String(chat.last_name || '') },
+      updatedAt: { timestampValue: new Date().toISOString() }
+    }
+  };
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`Firestore Telegram chat save failed: ${JSON.stringify(result)}`);
+  return result;
+}
+
+async function getTelegramChats(env, accessToken) {
+  const chats = [];
+  let pageToken = '';
+  const base = firestoreBase(env, 'telegramChats');
+  do {
+    const url = new URL(base);
+    url.searchParams.set('pageSize', '1000');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const data = await response.json();
+    if (!response.ok) throw new Error(`Firestore Telegram chat read failed: ${JSON.stringify(data)}`);
+    for (const document of data.documents || []) {
+      const id = document.fields?.chatId?.integerValue || document.fields?.chatId?.stringValue || '';
+      if (id) chats.push(String(id));
+    }
+    pageToken = data.nextPageToken || '';
+  } while (pageToken);
+  if (env.TELEGRAM_CHAT_ID) chats.push(String(env.TELEGRAM_CHAT_ID));
+  return [...new Set(chats)];
 }
 
 function buildNotification(type, data) {
@@ -126,23 +173,76 @@ function telegramText(type, data) {
   return lines.join('\n');
 }
 
-async function sendTelegram(env, type, data) {
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return { skipped: true, reason: 'Telegram secrets are not configured' };
-  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+async function telegramApi(env, method, body) {
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error('TELEGRAM_BOT_TOKEN is not configured');
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: telegramText(type, data), parse_mode: 'HTML', disable_web_page_preview: true })
+    body: JSON.stringify(body)
   });
   const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.ok) throw new Error(`Telegram send failed: ${JSON.stringify(result)}`);
-  return { sent: true };
+  if (!response.ok || !result.ok) throw new Error(`Telegram API ${method} failed: ${JSON.stringify(result)}`);
+  return result;
+}
+
+async function sendTelegram(env, accessToken, type, data) {
+  if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
+  const chats = await getTelegramChats(env, accessToken);
+  if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
+  const results = [];
+  for (const chatId of chats) {
+    try {
+      await telegramApi(env, 'sendMessage', { chat_id: chatId, text: telegramText(type, data), parse_mode: 'HTML', disable_web_page_preview: true });
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: true });
+    } catch (error) {
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: false, error: error.message });
+    }
+  }
+  return { sent: results.filter(r => r.ok).length, total: results.length, results };
+}
+
+async function handleTelegramUpdate(env, accessToken, update) {
+  const message = update?.message;
+  if (!message?.chat?.id) return { ignored: true };
+  const chat = message.chat;
+  const text = String(message.text || '').trim();
+  await saveTelegramChat(env, accessToken, chat);
+  if (text.startsWith('/start')) {
+    await telegramApi(env, 'sendMessage', {
+      chat_id: chat.id,
+      text: '✅ تم ربط Pet Spot Clinic بنجاح. من الآن هيوصلك إشعار عند إضافة أو حذف Order أو Booking.'
+    });
+    return { registered: true, chatId: String(chat.id) };
+  }
+  if (text.startsWith('/id')) {
+    await telegramApi(env, 'sendMessage', { chat_id: chat.id, text: `Chat ID: ${chat.id}` });
+    return { registered: true, chatId: String(chat.id) };
+  }
+  await telegramApi(env, 'sendMessage', { chat_id: chat.id, text: '✅ البوت شغال. استخدم /start لربط المحادثة بالإشعارات.' });
+  return { registered: true, chatId: String(chat.id) };
 }
 
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
     const url = new URL(request.url);
+
     if (request.method === 'GET' && url.pathname === '/') return json({ ok: true, service: 'pet-spot-fcm-telegram' });
+    if (request.method === 'GET' && url.pathname === '/telegram') return json({ ok: true, telegram: 'webhook endpoint ready' });
+
+    if (request.method === 'POST' && url.pathname === '/telegram') {
+      try {
+        const payload = await request.json();
+        const serviceAccount = getServiceAccount(env);
+        const accessToken = await createGoogleAccessToken(serviceAccount);
+        const result = await handleTelegramUpdate(env, accessToken, payload);
+        return json({ ok: true, ...result });
+      } catch (error) {
+        console.error(error);
+        return json({ ok: false, error: error.message || String(error) }, 500);
+      }
+    }
+
     if (request.method !== 'POST' || url.pathname !== '/notify') return json({ ok: false, error: 'Not found' }, 404);
 
     const secret = env.NOTIFY_SECRET;
@@ -154,9 +254,9 @@ export default {
       const data = payload?.data || {};
       if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) return json({ ok: false, error: 'Invalid notification type' }, 400);
 
-      const telegram = await sendTelegram(env, type, data);
       const serviceAccount = getServiceAccount(env);
       const accessToken = await createGoogleAccessToken(serviceAccount);
+      const telegram = await sendTelegram(env, accessToken, type, data);
       const tokens = await getAdminTokens(env, accessToken);
       const notification = buildNotification(type, data);
       const results = await Promise.all(tokens.map(async item => {
