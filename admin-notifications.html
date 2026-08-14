@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pet Spot Clinic — Admin Notifications</title>
+<style>
+body{margin:0;background:#fbfaf5;color:#172019;font-family:Arial,sans-serif;padding:20px}.wrap{max-width:720px;margin:auto}.card{background:#fff;border:1px solid #e2e8e2;border-radius:20px;padding:24px;box-shadow:0 10px 35px #0001}.status{padding:14px;border-radius:12px;background:#fff1f0;color:#9b2c2c;font-weight:800;margin:15px 0}.status.ok{background:#e8f5ea;color:#063b16}.row{display:flex;gap:10px;flex-wrap:wrap}button{border:0;border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer;background:#063b16;color:#fff}.item{border-top:1px solid #e2e8e2;padding:15px 0}.muted{color:#68706b}.badge{display:inline-block;background:#e2f1e5;color:#063b16;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:800}h1{font-family:Georgia,serif}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+</head>
+<body><div class="wrap"><div class="card">
+<h1>🔔 Admin Notifications</h1>
+<p class="muted">وضع مجاني مؤقت: يراقب الحجوزات والطلبات لحظيًا أثناء فتح هذه الصفحة.</p>
+<div id="status" class="status">جاري الاتصال...</div>
+<div class="row"><button id="allow">تفعيل إشعارات الجهاز</button><button onclick="location.href='/pet-spot-clinic/'">العودة للموقع</button></div>
+<div id="list"></div>
+</div></div>
+<script>
+const firebaseConfig={apiKey:'AIzaSyA6lpUuP_8KHWzzP89ZIpmVts7ABuogGVw',authDomain:'pet-spot-clinic.firebaseapp.com',projectId:'pet-spot-clinic',storageBucket:'pet-spot-clinic.firebasestorage.app',messagingSenderId:'98732499537',appId:'1:98732499537:web:878f3820f40a03151a8e70',measurementId:'G-TY6N10TK80'};
+firebase.initializeApp(firebaseConfig);const db=firebase.firestore();
+const status=document.getElementById('status'),list=document.getElementById('list');
+let known=new Set(JSON.parse(localStorage.getItem('petspot_seen_notifications')||'[]'));
+function setStatus(ok,text){status.className='status'+(ok?' ok':'');status.textContent=text}
+async function allow(){if(!('Notification'in window)){setStatus(false,'هذا المتصفح لا يدعم إشعارات الويب.');return}const p=await Notification.requestPermission();setStatus(p==='granted',p==='granted'?'🔔 الإشعارات مفعلة على هذا الجهاز.':'الإشعارات غير مفعلة — اسمح بها من إعدادات المتصفح.')}
+document.getElementById('allow').onclick=allow;
+function notify(id,title,body){if(known.has(id))return;known.add(id);localStorage.setItem('petspot_seen_notifications',JSON.stringify([...known].slice(-200)));if(Notification.permission==='granted')new Notification(title,{body,icon:'/pet-spot-clinic/icon-192.png'});}
+function add(id,type,data){const name=data.name||data.customer?.name||'عميل جديد';const service=data.service||'Booking';const title=type==='booking'?'📅 حجز جديد':'🛍️ طلب جديد';const body=type==='booking'?`${name} — ${service}`:`${name} قام بإنشاء طلب جديد`;
+notify(type+':'+id,title,body);const el=document.createElement('div');el.className='item';el.innerHTML=`<span class="badge">${type==='booking'?'Booking':'Order'}</span><b> ${name}</b><div class="muted">${body}</div>`;list.prepend(el)}
+function listen(col,type){db.collection(col).orderBy('createdAt','desc').limit(20).onSnapshot(snap=>{snap.docChanges().reverse().forEach(ch=>{if(ch.type==='added')add(ch.doc.id,type,ch.doc.data())})},err=>setStatus(false,'تعذر قراءة '+col+': '+err.message))}
+setStatus(true,'🟢 متصل — في انتظار Booking أو Order جديد...');listen('bookings','booking');listen('orders','order');
+</script></body></html>
