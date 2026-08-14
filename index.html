@@ -527,6 +527,15 @@ const EN={};
 function buildReverse(){document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(!EN[k])EN[k]=el.textContent.trim()})}
 function tr(key){return lang==='ar'?(AR[key]||key):(EN[key]||key)}
 function saveCart(){localStorage.setItem('petspotCart',JSON.stringify(cart))}
+const PETSPOT_FCM_WORKER_URL='https://pet-spot-fcm.youssefosama5901.workers.dev/notify';
+async function notifyPetSpot(type,data){
+  if(!firebaseConfigured)return null;
+  const response=await fetch(PETSPOT_FCM_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})});
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok||result.ok===false)throw new Error(result.error||('FCM worker HTTP '+response.status));
+  return result;
+}
+
 
 async function initSharedStore(){
   if(!firebaseConfigured){
@@ -615,7 +624,9 @@ async function booking(e){
   try{
     const createdAt=new Date().toISOString();
     if(firebaseConfigured){
-      await db.collection('bookings').doc(data.id).set({...data,createdAt});
+      const bookingRecord={...data,createdAt};
+      await db.collection('bookings').doc(data.id).set(bookingRecord);
+      try{await notifyPetSpot('booking',bookingRecord);}catch(notifyErr){console.error('Booking notification:',notifyErr);}
     }else{
       bs.push({...data,createdAt});
       setBookings(bs);
@@ -682,6 +693,8 @@ if(!cart.length)return;
 try{
   const customer={name:document.getElementById('orderName').value.trim(),phone:document.getElementById('orderPhone').value.trim(),address:document.getElementById('orderAddress').value.trim()};
   const orderRef=db.collection('orders').doc();
+  const orderNumber='ORD-'+Date.now().toString().slice(-6);
+  const orderCreatedAt=new Date().toISOString();
   let orderItems=[];let total=0;
   if(firebaseConfigured){
     await db.runTransaction(async tx=>{
@@ -699,14 +712,15 @@ try{
         orderItems.push({productId:cloud.id,name:cloud.name,category:cloud.category,price:cloud.price,quantity:qty,image:cloud.image,subtotal});
         tx.update(snap.ref,{stock:cloud.stock-qty});
       }
-      tx.set(orderRef,{orderNumber:'ORD-'+Date.now().toString().slice(-6),customer,items:orderItems,total,status:'New',createdAt:new Date().toISOString()});
+      tx.set(orderRef,{orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});
     });
   }else{
     for(const x of cart){const p=products[x.i];const qty=x.qty||1;if(!p||qty>p.stock)throw new Error('OUT_OF_STOCK');const sub=p.price*qty;total+=sub;orderItems.push({productId:p.id,name:p.name,category:p.category,price:p.price,quantity:qty,image:p.image,subtotal:sub});p.stock-=qty}
     localStorage.setItem('petspotProducts',JSON.stringify(products));
-    orders.unshift({id:String(Date.now()),orderNumber:'ORD-'+Date.now().toString().slice(-6),customer,items:orderItems,total,status:'New',createdAt:new Date().toISOString()});
+    orders.unshift({id:String(Date.now()),orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});
     localStorage.setItem('petspotOrders',JSON.stringify(orders));
   }
+  if(firebaseConfigured){try{await notifyPetSpot('order',{orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});}catch(notifyErr){console.error('Order notification:',notifyErr);}}
   cart=[];saveCart();closeOrderModal();renderCart();renderProducts();renderAdmin();
   alert(lang==='ar'?'تم إرسال الطلب وخصم الكمية من المخزون المشترك.':'Order submitted and the quantity was deducted from shared inventory.');
 }catch(err){
