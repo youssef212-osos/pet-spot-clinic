@@ -20,23 +20,25 @@ function base64url(input) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-// Decode standard base64 without using atob(), which was causing the webhook 500 error.
+// Decode base64 without atob(). The previous implementation failed on the Worker webhook.
 function base64ToBytes(value) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const clean = String(value || '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
   if (!clean) throw new Error('Firebase private key is missing');
-  let bits = 0;
-  let bitCount = 0;
   const out = [];
-  for (const char of clean.replace(/=+$/g, '')) {
-    const n = alphabet.indexOf(char);
-    if (n < 0) throw new Error('Firebase private key contains invalid base64 characters');
-    bits = (bits << 6) | n;
-    bitCount += 6;
-    if (bitCount >= 8) {
-      bitCount -= 8;
-      out.push((bits >> bitCount) & 255);
-    }
+  for (let i = 0; i < clean.length; i += 4) {
+    const c0 = clean[i];
+    const c1 = clean[i + 1] || '=';
+    const c2 = clean[i + 2] || '=';
+    const c3 = clean[i + 3] || '=';
+    const a = alphabet.indexOf(c0);
+    const b = alphabet.indexOf(c1);
+    const c = c2 === '=' ? 0 : alphabet.indexOf(c2);
+    const d = c3 === '=' ? 0 : alphabet.indexOf(c3);
+    if (a < 0 || b < 0 || c < 0 || d < 0) throw new Error('Firebase private key contains invalid base64 characters');
+    out.push((a << 2) | (b >> 4));
+    if (c2 !== '=') out.push(((b & 15) << 4) | (c >> 2));
+    if (c3 !== '=') out.push(((c & 3) << 6) | d);
   }
   return new Uint8Array(out).buffer;
 }
@@ -253,6 +255,22 @@ async function handleTelegramUpdate(env, update) {
   return { registered: true, chatId: String(chat.id), text };
 }
 
+async function sendTelegram(env, accessToken, type, data) {
+  if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
+  const chats = await getTelegramChats(env, accessToken);
+  if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
+  const results = [];
+  for (const chatId of chats) {
+    try {
+      await telegramApi(env, 'sendMessage', { chat_id: chatId, text: telegramText(type, data), parse_mode: 'HTML', disable_web_page_preview: true });
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: true });
+    } catch (error) {
+      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: false, error: error.message });
+    }
+  }
+  return { sent: results.filter(r => r.ok).length, total: results.length, results };
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -264,7 +282,7 @@ export default {
     if (request.method === 'POST' && url.pathname === '/telegram') {
       try {
         const payload = await request.json();
-        // Reply to Telegram first. Firebase is only used afterward for chat registration.
+        // Telegram gets its reply before Firebase registration is attempted.
         const result = await handleTelegramUpdate(env, payload);
         const chat = payload?.message?.chat;
         if (chat?.id) {
@@ -288,7 +306,6 @@ export default {
       const type = payload?.type;
       const data = payload?.data || {};
       if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) return json({ ok: false, error: 'Invalid notification type' }, 400);
-
       const accessToken = await createGoogleAccessToken(getServiceAccount(env));
       let telegram = { skipped: true };
       try { telegram = await sendTelegram(env, accessToken, type, data); } catch (error) { telegram = { skipped: false, error: error.message }; }
@@ -307,19 +324,3 @@ export default {
     }
   }
 };
-
-async function sendTelegram(env, accessToken, type, data) {
-  if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
-  const chats = await getTelegramChats(env, accessToken);
-  if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
-  const results = [];
-  for (const chatId of chats) {
-    try {
-      await telegramApi(env, 'sendMessage', { chat_id: chatId, text: telegramText(type, data), parse_mode: 'HTML', disable_web_page_preview: true });
-      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: true });
-    } catch (error) {
-      results.push({ chatId: `${chatId.slice(0, 4)}…`, ok: false, error: error.message });
-    }
-  }
-  return { sent: results.filter(r => r.ok).length, total: results.length, results };
-}
