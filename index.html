@@ -560,7 +560,7 @@ const PETSPOT_FCM_WORKER_URL='https://pet-spot-fcm.youssefosama5901.workers.dev/
 // The Worker decides the destination: admin tokens for customer actions, customer token for admin actions.
 async function notifyPetSpot(type,data){
   if(!firebaseConfigured)return null;
-  const response=await fetch(PETSPOT_FCM_WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type,data})});
+  const response=await fetch(PETSPOT_FCM_WORKER_URL,{method:'POST',mode:'cors',cache:'no-store',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify({type,data})});
   const result=await response.json().catch(()=>({}));
   if(!response.ok||result.ok===false)throw new Error(result.error||('FCM worker HTTP '+response.status));
   return result;
