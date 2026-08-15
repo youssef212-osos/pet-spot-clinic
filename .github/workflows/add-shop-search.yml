@@ -1,0 +1,63 @@
+name: Add Pet Shop Search Bar
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  add-search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add search bar to Pet Shop
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          changed = False
+
+          if 'id="petShopSearch"' not in s:
+              css = '''\n<style id="pet-shop-search-style">\n.pet-shop-search{max-width:720px;margin:0 auto 28px;position:relative}.pet-shop-search input{width:100%;padding:15px 48px 15px 18px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:16px;outline:none;box-shadow:0 4px 14px #00000008}.pet-shop-search input:focus{border-color:var(--green2);box-shadow:0 0 0 3px #08703a18}.pet-shop-search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;pointer-events:none}.pet-shop-no-results{text-align:center;padding:30px;color:var(--muted);font-weight:800;grid-column:1/-1}\n[dir=rtl] .pet-shop-search input{padding:15px 18px 15px 48px}.\n</style>\n'''
+              s = s.replace('</head>', css + '</head>', 1)
+              changed = True
+
+              marker = '<div id="products"'
+              if marker in s:
+                  search_html = '''<div class="pet-shop-search"><span class="pet-shop-search-icon">🔎</span><input id="petShopSearch" type="search" placeholder="Search products..." oninput="shopSearchTerm=this.value;renderProducts()" autocomplete="off"></div>'''
+                  s = s.replace(marker, search_html + marker, 1)
+              else:
+                  marker2 = '<div class="products"'
+                  if marker2 in s:
+                      search_html = '''<div class="pet-shop-search"><span class="pet-shop-search-icon">🔎</span><input id="petShopSearch" type="search" placeholder="Search products..." oninput="shopSearchTerm=this.value;renderProducts()" autocomplete="off"></div>'''
+                      s = s.replace(marker2, search_html + marker2, 1)
+
+          if 'let shopSearchTerm=' not in s:
+              s = s.replace('function renderProducts(){', "let shopSearchTerm='';\nfunction renderProducts(){", 1)
+              changed = True
+
+          old = 'el.innerHTML=products.map((p,i)=>`<article class="product">'
+          new = '''const q=(shopSearchTerm||'').trim().toLowerCase();
+const visibleProducts=products.filter(p=>{if(!q)return true;const name=String(p.name||'').toLowerCase();const translated=String(productName(p.name)||'').toLowerCase();const cat=String(p.category||'').toLowerCase();const translatedCat=String(categoryName(p.category)||'').toLowerCase();return name.includes(q)||translated.includes(q)||cat.includes(q)||translatedCat.includes(q)});
+if(!visibleProducts.length){el.innerHTML='<div class="pet-shop-no-results">No products found</div>';return;}
+el.innerHTML=visibleProducts.map((p,i)=>`<article class="product">'''
+          if old in s and 'const visibleProducts=products.filter' not in s:
+              s = s.replace(old, new, 1)
+              changed = True
+
+          p.write_text(s, encoding='utf-8')
+          print('changed:', changed)
+
+      - name: Commit search bar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/add-shop-search.yml
+          git diff --cached --quiet || git commit -m "Add Pet Shop product search bar"
+          git push
