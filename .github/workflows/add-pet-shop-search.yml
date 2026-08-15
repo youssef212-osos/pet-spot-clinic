@@ -1,0 +1,106 @@
+name: Add Pet Shop Search Bar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  add-search:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Add Pet Shop search bar
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('index.html')
+          html = path.read_text(encoding='utf-8')
+
+          if 'id="shopSearch"' in html:
+              print('Pet Shop search bar already installed.')
+              raise SystemExit(0)
+
+          shop_marker = '''<section id="shop" class="page shop"><div class="section"><div class="center"><span class="eyebrow" data-i18n="shopEyebrow">PET SHOP</span><h2 data-i18n="shopTitle">Quality products for happy pets.</h2><p class="muted" data-i18n="shopDescLong">Browse products, add them to your cart, and place an order.</p></div><div id="products" class="products"></div></div></section>'''
+          shop_replacement = '''<section id="shop" class="page shop"><div class="section"><div class="center"><span class="eyebrow" data-i18n="shopEyebrow">PET SHOP</span><h2 data-i18n="shopTitle">Quality products for happy pets.</h2><p class="muted" data-i18n="shopDescLong">Browse products, add them to your cart, and place an order.</p></div><div class="shopSearchWrap"><input id="shopSearch" class="shopSearch" type="search" autocomplete="off" aria-label="Search products" placeholder="🔎 Search products..."><span id="shopSearchCount" class="shopSearchCount"></span></div><div id="products" class="products"></div></div></section>'''
+
+          if shop_marker not in html:
+              raise SystemExit('Could not find the Pet Shop section marker.')
+          html = html.replace(shop_marker, shop_replacement, 1)
+
+          css = '''
+/* Pet Shop search */
+.shopSearchWrap{max-width:760px;margin:0 auto 28px;display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:7px 12px;box-shadow:0 5px 18px #0000000d}
+.shopSearch{width:100%;border:0;outline:0;background:transparent;padding:12px 10px;font-size:17px;font-weight:700;color:var(--ink)}
+.shopSearch::placeholder{color:#89928b;font-weight:600}
+.shopSearchCount{white-space:nowrap;color:var(--muted);font-size:13px;font-weight:800;padding:0 7px}
+.shopSearchEmpty{grid-column:1/-1;background:#fff;border:1px dashed var(--line);border-radius:18px;padding:30px;text-align:center;color:var(--muted);font-weight:700}
+@media(max-width:600px){.shopSearchWrap{margin-bottom:22px}.shopSearch{font-size:16px}.shopSearchCount{font-size:12px}}
+'''
+          html = html.replace('</style>', css + '</style>', 1)
+
+          js = r'''
+
+/* Pet Shop live search */
+(function initPetShopSearch(){
+  function filterShopProducts(){
+    const input=document.getElementById('shopSearch');
+    const box=document.getElementById('products');
+    const count=document.getElementById('shopSearchCount');
+    if(!input||!box)return;
+    const q=String(input.value||'').trim().toLocaleLowerCase();
+    const cards=Array.from(box.querySelectorAll('.product'));
+    let visible=0;
+    cards.forEach((card,i)=>{
+      const p=products[i];
+      if(!p){card.style.display='none';return;}
+      const hay=[p.name,productName(p.name),p.category,categoryName(p.category)].join(' ').toLocaleLowerCase();
+      const match=!q||hay.includes(q);
+      card.style.display=match?'':'none';
+      if(match)visible++;
+    });
+    if(q && !visible && cards.length){
+      if(!box.querySelector('.shopSearchEmpty')){
+        const empty=document.createElement('div');
+        empty.className='shopSearchEmpty';
+        empty.textContent=lang==='ar'?'لا يوجد منتج بهذا الاسم.':'No products found with this name.';
+        box.appendChild(empty);
+      }
+    }else{
+      const empty=box.querySelector('.shopSearchEmpty');
+      if(empty)empty.remove();
+    }
+    if(count){
+      count.textContent=q?(lang==='ar'?visible+' نتيجة':' '+visible+' result'+(visible===1?'':'s')):'';
+    }
+  }
+
+  function updateSearchPlaceholder(){
+    const input=document.getElementById('shopSearch');
+    if(input)input.placeholder=lang==='ar'?'🔎 ابحث عن اسم المنتج...':'🔎 Search product name...';
+  }
+
+  function init(){
+    const input=document.getElementById('shopSearch');
+    const box=document.getElementById('products');
+    if(!input||!box)return;
+    input.addEventListener('input',filterShopProducts);
+    new MutationObserver(filterShopProducts).observe(box,{childList:true});
+    new MutationObserver(updateSearchPlaceholder).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
+    updateSearchPlaceholder();
+    filterShopProducts();
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+'''
+          html = html.replace('</script>', js + '</script>', 1)
+
+          path.write_text(html, encoding='utf-8')
+          print('Pet Shop search bar installed successfully.')
