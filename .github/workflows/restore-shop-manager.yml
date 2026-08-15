@@ -1,0 +1,94 @@
+name: Restore Pet Shop Manager controls
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch shop manager
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          original = s
+
+          old = "noOrders:'لا توجد طلبات حتى الآن.'};"
+          new = "noOrders:'لا توجد طلبات حتى الآن.',addProduct:'إضافة منتج',deleteProduct:'حذف المنتج',addNewProduct:'إضافة منتج جديد'};"
+          if old not in s:
+              raise SystemExit('AR labels marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '<h2 style="margin-top:40px" data-i18n="shopManager">Pet Shop Manager</h2>\\n<div class="adminTable">'
+          new = '<h2 style="margin-top:40px" data-i18n="shopManager">Pet Shop Manager</h2>\\n<div style="display:flex;justify-content:flex-end;margin:0 0 14px"><button class="btn green" type="button" onclick="openAddProduct()">➕ <span data-i18n="addProduct">Add Product</span></button></div>\\n<div class="adminTable">'
+          if old not in s:
+              raise SystemExit('shop manager marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '<button class="btn green" onclick="editProduct(${i})">${lang===\'ar\'?\'تعديل\':\'Edit\'}</button></td></tr>`).join(\'\');'
+          new = '<button class="btn green" onclick="editProduct(${i})">${lang===\'ar\'?\'تعديل\':\'Edit\'}</button> <button class="btn red" onclick="deleteProduct(${i})">${tr(\'deleteProduct\')}</button></td></tr>`).join(\'\');'
+          if old not in s:
+              raise SystemExit('product action marker not found')
+          s = s.replace(old, new, 1)
+
+          marker = '<div id="modal" class="modal"><div class="modalBox"><h2 data-i18n="adminLoginTitle">Admin Login</h2>'
+          modal = '''<div id="addProductModal" class="modal"><div class="modalBox">
+          <h2 data-i18n="addNewProduct">Add New Product</h2>
+          <form id="addProductForm" onsubmit="saveNewProduct(event)">
+          <div class="field"><label data-i18n="productName">Product Name</label><input id="addName" required></div>
+          <div class="field" style="margin-top:12px"><label data-i18n="category">Category</label><select id="addCategory"><option value="Dry Food">Dry Food</option><option value="Treats">Treats</option><option value="Hygiene">Hygiene</option><option value="Grooming">Grooming</option><option value="Accessories">Accessories</option><option value="Healthcare">Healthcare</option></select></div>
+          <div class="grid" style="margin-top:12px"><div class="field"><label data-i18n="price">Price</label><input id="addPrice" type="number" min="0" required></div><div class="field"><label data-i18n="stock">Stock</label><input id="addStock" type="number" min="0" required></div></div>
+          <div class="field" style="margin-top:12px"><label data-i18n="imageUrl">Image URL</label><input id="addImage" type="url" placeholder="https://..."></div>
+          <div style="display:flex;gap:10px;margin-top:15px"><button class="btn green" style="flex:1" type="submit">${lang==='ar'?'إضافة':'Add'}</button><button class="btn" style="flex:1;background:#eee" type="button" onclick="closeAddProduct()">${lang==='ar'?'إلغاء':'Cancel'}</button></div>
+          </form>
+          </div></div>
+
+          '''
+          if marker not in s:
+              raise SystemExit('admin login marker not found')
+          s = s.replace(marker, modal + marker, 1)
+
+          marker = 'function editProduct(i){const p=products[i];'
+          code = '''function openAddProduct(){document.getElementById('addProductForm').reset();document.getElementById('addProductModal').classList.add('show')}
+          function closeAddProduct(){document.getElementById('addProductModal').classList.remove('show')}
+          async function saveNewProduct(e){
+            e.preventDefault();
+            const name=document.getElementById('addName').value.trim();
+            if(!name)return;
+            const ids=products.map(p=>Number(p.id)||0);
+            const id=(ids.length?Math.max(...ids):0)+1;
+            const product={id,name,category:document.getElementById('addCategory').value,price:Math.max(0,Number(document.getElementById('addPrice').value)||0),stock:Math.max(0,parseInt(document.getElementById('addStock').value)||0),image:document.getElementById('addImage').value.trim()};
+            try{
+              if(firebaseConfigured){await db.collection('products').doc(String(id)).set(product);}
+              else{products.push(product);localStorage.setItem('petspotProducts',JSON.stringify(products));renderProducts();renderAdmin();}
+              closeAddProduct();
+            }catch(err){console.error('Add product:',err);alert(lang==='ar'?'تعذر إضافة المنتج.':'Could not add the product.');}
+          }
+          async function deleteProduct(i){
+            const p=products[i];if(!p)return;
+            if(!confirm(lang==='ar'?'هل تريد حذف هذا المنتج؟':'Delete this product?'))return;
+            try{
+              if(firebaseConfigured){await db.collection('products').doc(String(p.id)).delete();}
+              else{products.splice(i,1);localStorage.setItem('petspotProducts',JSON.stringify(products));renderProducts();renderAdmin();}
+            }catch(err){console.error('Delete product:',err);alert(lang==='ar'?'تعذر حذف المنتج.':'Could not delete the product.');}
+          }
+          function editProduct(i){const p=products[i];'''
+          if marker not in s:
+              raise SystemExit('editProduct marker not found')
+          s = s.replace(marker, code, 1)
+
+          if s == original:
+              raise SystemExit('No changes made')
+          p.write_text(s, encoding='utf-8')
+      - name: Commit restored controls
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Restore Pet Shop Manager add and delete controls"
+          git push
