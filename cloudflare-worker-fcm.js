@@ -5,7 +5,7 @@ const corsHeaders = {
 };
 
 const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';
-const WORKER_VERSION = 'notify-transport-v2';
+const WORKER_VERSION = 'notify-transport-v3';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -21,7 +21,6 @@ function base64url(input) {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-// Decode base64 without atob(). The previous implementation failed on the Worker webhook.
 function base64ToBytes(value) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const clean = String(value || '').replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
@@ -46,7 +45,7 @@ function base64ToBytes(value) {
 
 function pemToArrayBuffer(pem) {
   let value = String(pem ?? '').trim();
-  value = value.replace(/^['"]|['"]$/g, '');
+  value = value.replace(/^['\"]|['\"]$/g, '');
   value = value.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
   const match = value.match(/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/);
   if (match) value = match[1];
@@ -74,6 +73,12 @@ function getServiceAccount(env) {
   throw new Error('Firebase service-account configuration is missing');
 }
 
+function getFirebaseProjectId(env, serviceAccount) {
+  const projectId = serviceAccount?.project_id || env.FIREBASE_PROJECT_ID || '';
+  if (!projectId) throw new Error('Firebase project ID is missing from FIREBASE_SERVICE_ACCOUNT and FIREBASE_PROJECT_ID');
+  return String(projectId);
+}
+
 async function createGoogleAccessToken(serviceAccount) {
   const now = Math.floor(Date.now() / 1000);
   const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
@@ -87,7 +92,7 @@ async function createGoogleAccessToken(serviceAccount) {
   const unsigned = `${header}.${claim}`;
   const privateKey = String(serviceAccount.private_key || '')
     .trim()
-    .replace(/^['"]|['"]$/g, '')
+    .replace(/^['\"]|['\"]$/g, '')
     .replace(/\\r\\n/g, '\n')
     .replace(/\\n/g, '\n')
     .replace(/\\r/g, '\r');
@@ -117,15 +122,15 @@ async function createGoogleAccessToken(serviceAccount) {
   return data.access_token;
 }
 
-function firestoreBase(env, collection) {
-  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/databases/(default)/documents/${collection}`;
+function firestoreBase(projectId, collection) {
+  return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)/documents/${collection}`;
 }
 
-async function getAdminTokens(env, accessToken) {
+async function getAdminTokens(env, accessToken, projectId) {
   const tokens = [];
   let pageToken = '';
   do {
-    const url = new URL(firestoreBase(env, 'adminPushTokens'));
+    const url = new URL(firestoreBase(projectId, 'adminPushTokens'));
     url.searchParams.set('pageSize', '1000');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -150,9 +155,9 @@ async function deleteToken(env, accessToken, documentName) {
   return response.ok || response.status === 404;
 }
 
-async function saveTelegramChat(env, accessToken, chat) {
+async function saveTelegramChat(env, accessToken, chat, projectId) {
   const chatId = String(chat.id);
-  const url = `${firestoreBase(env, 'telegramChats')}/${encodeURIComponent(chatId)}`;
+  const url = `${firestoreBase(projectId, 'telegramChats')}/${encodeURIComponent(chatId)}`;
   const body = { fields: {
     chatId: { integerValue: chatId },
     username: { stringValue: String(chat.username || '') },
@@ -169,11 +174,11 @@ async function saveTelegramChat(env, accessToken, chat) {
   if (!response.ok) throw new Error(`Firestore Telegram chat save failed: ${JSON.stringify(result)}`);
 }
 
-async function getTelegramChats(env, accessToken) {
+async function getTelegramChats(env, accessToken, projectId) {
   const chats = [];
   let pageToken = '';
   do {
-    const url = new URL(firestoreBase(env, 'telegramChats'));
+    const url = new URL(firestoreBase(projectId, 'telegramChats'));
     url.searchParams.set('pageSize', '1000');
     if (pageToken) url.searchParams.set('pageToken', pageToken);
     const response = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
@@ -223,8 +228,8 @@ async function telegramApi(env, method, body) {
   return result;
 }
 
-async function sendToToken(env, accessToken, token, notification, type) {
-  const url = `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/messages:send`;
+async function sendToToken(env, accessToken, projectId, token, notification, type) {
+  const url = `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -236,8 +241,10 @@ async function sendToToken(env, accessToken, token, notification, type) {
 
 async function registerTelegramChatInBackground(env, chat) {
   try {
-    const accessToken = await createGoogleAccessToken(getServiceAccount(env));
-    await saveTelegramChat(env, accessToken, chat);
+    const serviceAccount = getServiceAccount(env);
+    const projectId = getFirebaseProjectId(env, serviceAccount);
+    const accessToken = await createGoogleAccessToken(serviceAccount);
+    await saveTelegramChat(env, accessToken, chat, projectId);
     console.log('Telegram chat registered:', String(chat.id));
   } catch (error) {
     console.error('Telegram chat registration failed:', error);
@@ -256,9 +263,9 @@ async function handleTelegramUpdate(env, update) {
   return { registered: true, chatId: String(chat.id), text };
 }
 
-async function sendTelegram(env, accessToken, type, data) {
+async function sendTelegram(env, accessToken, projectId, type, data) {
   if (!env.TELEGRAM_BOT_TOKEN) return { skipped: true, reason: 'TELEGRAM_BOT_TOKEN is not configured' };
-  const chats = await getTelegramChats(env, accessToken);
+  const chats = await getTelegramChats(env, accessToken, projectId);
   if (!chats.length) return { skipped: true, reason: 'No Telegram chat registered yet; send /start to the bot' };
   const results = [];
   for (const chatId of chats) {
@@ -363,17 +370,19 @@ export default {
       if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) {
         return json({ ok: false, requestId, error: 'Invalid notification type' }, 400);
       }
-      const accessToken = await createGoogleAccessToken(getServiceAccount(env));
+      const serviceAccount = getServiceAccount(env);
+      const projectId = getFirebaseProjectId(env, serviceAccount);
+      const accessToken = await createGoogleAccessToken(serviceAccount);
       let telegram = { skipped: true };
       try {
-        telegram = await sendTelegram(env, accessToken, type, data);
+        telegram = await sendTelegram(env, accessToken, projectId, type, data);
       } catch (error) {
         telegram = { skipped: false, error: error.message };
       }
-      const tokens = await getAdminTokens(env, accessToken);
+      const tokens = await getAdminTokens(env, accessToken, projectId);
       const notification = buildNotification(type, data);
       const results = await Promise.all(tokens.map(async item => {
-        const result = await sendToToken(env, accessToken, item.token, notification, type);
+        const result = await sendToToken(env, accessToken, projectId, item.token, notification, type);
         const errorText = JSON.stringify(result.result || {});
         if (!result.ok && (result.status === 404 || errorText.includes('UNREGISTERED'))) {
           await deleteToken(env, accessToken, item.name);
