@@ -318,6 +318,7 @@ export default {
 
 
 
+
     if (request.method === 'GET' && url.pathname === '/notify') {
       return json({ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId });
     }
