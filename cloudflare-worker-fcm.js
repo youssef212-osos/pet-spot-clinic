@@ -5,6 +5,7 @@ const corsHeaders = {
 };
 
 const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';
+const WORKER_VERSION = 'notify-transport-v2';
 const WORKER_VERSION = 'notify-transport-v3';
 
 function json(data, status = 200) {
@@ -313,6 +314,10 @@ export default {
 
     if (request.method === 'GET' && url.pathname === '/') {
       return json({ ok: true, service: 'pet-spot-fcm-telegram', requestId });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/notify') {
+      return json({ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId });
     }
 
     if (request.method === 'GET' && url.pathname === '/notify') {
