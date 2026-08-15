@@ -13,10 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch notify transport and add worker diagnostic
+      - name: Patch notify transport and normalize worker version
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           changed = False
 
@@ -31,13 +32,31 @@ jobs:
 
           worker = Path('cloudflare-worker-fcm.js')
           w = worker.read_text(encoding='utf-8')
-          if "const WORKER_VERSION = 'notify-transport-v2';" not in w:
-              w = w.replace("const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';", "const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';\nconst WORKER_VERSION = 'notify-transport-v2';", 1)
-              marker = "    if (request.method === 'GET' && url.pathname === '/telegram') {"
-              diagnostic = "    if (request.method === 'GET' && url.pathname === '/notify') {\n      return json({ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId });\n    }\n\n"
-              w = w.replace(marker, diagnostic + marker, 1)
-              w = w.replace("        total: results.length,\n        results\n      });", "        total: results.length,\n        results,\n        workerVersion: WORKER_VERSION\n      });", 1)
+
+          # Keep exactly one worker version declaration, using V3.
+          w2 = re.sub(r"\n?const WORKER_VERSION\s*=\s*['\"]notify-transport-[^'\"]+['\"];\n?", "\n", w)
+          site = "const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';"
+          if "const WORKER_VERSION = 'notify-transport-v3';" not in w2:
+              w2 = w2.replace(site, site + "\nconst WORKER_VERSION = 'notify-transport-v3';", 1)
+          if w2 != w:
+              w = w2
               changed = True
+
+          # Keep only one GET /notify diagnostic block.
+          notify_pattern = re.compile(
+              r"\n    if \(request\.method === 'GET' && url\.pathname === '/notify'\) \{\n"
+              r"      return json\(\{ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId \}\);\n"
+              r"    \}\n"
+          )
+          notify_block = "\n    if (request.method === 'GET' && url.pathname === '/notify') {\n      return json({ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId });\n    }\n"
+          w2 = notify_pattern.sub('', w)
+          marker = "    if (request.method === 'GET' && url.pathname === '/telegram') {"
+          if marker in w2 and notify_block.strip() not in w2:
+              w2 = w2.replace(marker, notify_block + "\n" + marker, 1)
+          if w2 != w:
+              w = w2
+              changed = True
+
           worker.write_text(w, encoding='utf-8')
 
           if not changed:
@@ -48,5 +67,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html cloudflare-worker-fcm.js
-          git diff --cached --quiet || git commit -m "fix: make worker notify request CORS-safe"
+          git diff --cached --quiet || git commit -m "fix: normalize worker notify transport"
           git push
