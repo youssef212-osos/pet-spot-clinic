@@ -345,7 +345,9 @@ export default {
     }
 
     const secret = env.NOTIFY_SECRET;
-    if (secret && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) {
+    const origin = request.headers.get('Origin') || '';
+    const isPetSpotBrowser = origin === 'https://youssef212-osos.github.io';
+    if (secret && !isPetSpotBrowser && (request.headers.get('X-PetSpot-Notify-Secret') || '') !== secret) {
       return json({ ok: false, requestId, error: 'Unauthorized' }, 401);
     }
 
