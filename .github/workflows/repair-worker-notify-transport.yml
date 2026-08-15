@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Patch notify transport and normalize worker version
+      - name: Patch notify transport and deletion notification types
         shell: python
         run: |
           from pathlib import Path
@@ -33,28 +33,40 @@ jobs:
           worker = Path('cloudflare-worker-fcm.js')
           w = worker.read_text(encoding='utf-8')
 
-          # Keep exactly one worker version declaration, using V3.
-          w2 = re.sub(r"\n?const WORKER_VERSION\s*=\s*['\"]notify-transport-[^'\"]+['\"];\n?", "\n", w)
-          site = "const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';"
-          if "const WORKER_VERSION = 'notify-transport-v3';" not in w2:
-              w2 = w2.replace(site, site + "\nconst WORKER_VERSION = 'notify-transport-v3';", 1)
-          if w2 != w:
-              w = w2
+          # Accept the exact deletion event names sent by the current index.html.
+          old_types = "if (!['booking', 'booking_removed', 'order', 'order_removed'].includes(type)) {"
+          new_types = "if (!['booking', 'booking_removed', 'booking_deleted_by_customer', 'booking_deleted_by_admin', 'order', 'order_removed', 'order_deleted_by_customer', 'order_deleted_by_admin'].includes(type)) {"
+          if old_types in w:
+              w = w.replace(old_types, new_types, 1)
               changed = True
 
-          # Keep only one GET /notify diagnostic block.
-          notify_pattern = re.compile(
-              r"\n    if \(request\.method === 'GET' && url\.pathname === '/notify'\) \{\n"
-              r"      return json\(\{ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId \}\);\n"
-              r"    \}\n"
-          )
-          notify_block = "\n    if (request.method === 'GET' && url.pathname === '/notify') {\n      return json({ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId });\n    }\n"
-          w2 = notify_pattern.sub('', w)
-          marker = "    if (request.method === 'GET' && url.pathname === '/telegram') {"
-          if marker in w2 and notify_block.strip() not in w2:
-              w2 = w2.replace(marker, notify_block + "\n" + marker, 1)
-          if w2 != w:
-              w = w2
+          # Give deletion events an explicit deletion notification instead of
+          # falling through to the New Order message.
+          old_build = """function buildNotification(type, data) {
+  const name = data.name || data.customerName || data.customer?.name || 'Customer';
+  if (type === 'booking_removed') return { title: '➖ Booking Removed', body: `${name} removed ${data.service || data.serviceName || 'Booking'}` };
+  if (type === 'booking') return { title: '➕ New Booking', body: `${name} booked ${data.service || data.serviceName || 'Booking'}` };
+  if (type === 'order_removed') return { title: '➖ Order Removed', body: `${name} removed an order` };
+  const number = data.orderNumber ? ` #${data.orderNumber}` : '';
+  return { title: '➕ New Order', body: `${name} placed a new order${number}` };
+}"""
+          new_build = """function buildNotification(type, data) {
+  const booking = data.booking || {};
+  const order = data.order || {};
+  const name = data.name || data.customerName || data.customer?.name || booking.name || order.customer?.name || 'Customer';
+  const phone = data.ownerPhone || booking.ownerPhone || booking.phone || order.customer?.ownerPhone || order.customer?.phone || '';
+  if (type === 'booking_deleted_by_customer' || type === 'booking_deleted_by_admin' || type === 'booking_removed') {
+    return { title: '🗑️ Booking Cancelled', body: `${name} cancelled a booking${phone ? ` — ${phone}` : ''}` };
+  }
+  if (type === 'order_deleted_by_customer' || type === 'order_deleted_by_admin' || type === 'order_removed') {
+    return { title: '🗑️ Order Cancelled', body: `${name} cancelled an order${phone ? ` — ${phone}` : ''}` };
+  }
+  if (type === 'booking') return { title: '➕ New Booking', body: `${name} booked ${data.service || data.serviceName || booking.service || 'Booking'}` };
+  const number = data.orderNumber ? ` #${data.orderNumber}` : '';
+  return { title: '➕ New Order', body: `${name} placed a new order${number}` };
+}"""
+          if old_build in w:
+              w = w.replace(old_build, new_build, 1)
               changed = True
 
           worker.write_text(w, encoding='utf-8')
@@ -67,5 +79,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html cloudflare-worker-fcm.js
-          git diff --cached --quiet || git commit -m "fix: normalize worker notify transport"
+          git diff --cached --quiet || git commit -m "fix: support booking and order deletion notifications"
           git push
