@@ -5,6 +5,7 @@ const corsHeaders = {
 };
 
 const SITE_URL = 'https://youssef212-osos.github.io/pet-spot-clinic/';
+const WORKER_VERSION = 'notify-transport-v2';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -307,6 +308,10 @@ export default {
       return json({ ok: true, service: 'pet-spot-fcm-telegram', requestId });
     }
 
+    if (request.method === 'GET' && url.pathname === '/notify') {
+      return json({ ok: true, service: 'notify', workerVersion: WORKER_VERSION, accepts: 'POST', requestId });
+    }
+
     if (request.method === 'GET' && url.pathname === '/telegram') {
       try {
         const webhookUrl = `${url.origin}/telegram`;
@@ -382,7 +387,8 @@ export default {
         telegram,
         sent: results.filter(r => r.ok).length,
         total: results.length,
-        results
+        results,
+        workerVersion: WORKER_VERSION
       });
     } catch (error) {
       console.error('Notification error:', { requestId, error: error.message || String(error) });
