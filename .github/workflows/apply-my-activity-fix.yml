@@ -1,0 +1,104 @@
+name: Apply My Booking & Orders Fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-my-activity-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # Add a stable per-browser customer id. Existing records keep phone fallback.
+          old = "function normalizePhone(value){return String(value||'').replace(/\\D/g,'').replace(/^20/,'').replace(/^0/,'')}"
+          new = old + "\nfunction getCustomerDeviceId(){let id=localStorage.getItem('petspot_customer_device_id');if(!id){id=(crypto.randomUUID?crypto.randomUUID():'ps-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('petspot_customer_device_id',id)}return id}"
+          if 'function getCustomerDeviceId()' not in s:
+              if old not in s: raise SystemExit('normalizePhone anchor not found')
+              s=s.replace(old,new,1)
+
+          # Attach ownership to new bookings.
+          old = "const ownerPhone=normalizePhone(f.get('phone')); localStorage.setItem('petspot_my_phone',ownerPhone); const data={id:String(Date.now()),service:selectedService,name:f.get('name'),phone:f.get('phone'),ownerPhone,petName:f.get('petName'),petType:f.get('petType'),date:f.get('date'),time:f.get('time'),notes:f.get('notes')};"
+          new = "const ownerPhone=normalizePhone(f.get('phone')); const ownerDeviceId=getCustomerDeviceId(); localStorage.setItem('petspot_my_phone',ownerPhone); const data={id:String(Date.now()),service:selectedService,name:f.get('name'),phone:f.get('phone'),ownerPhone,ownerDeviceId,petName:f.get('petName'),petType:f.get('petType'),date:f.get('date'),time:f.get('time'),notes:f.get('notes')};"
+          if old not in s: raise SystemExit('booking anchor not found')
+          s=s.replace(old,new,1)
+
+          # Attach ownership and a document id to new orders.
+          old = "const customer={name:document.getElementById('orderName').value.trim(),phone:document.getElementById('orderPhone').value.trim(),address:document.getElementById('orderAddress').value.trim()}; const ownerPhone=normalizePhone(customer.phone); customer.ownerPhone=ownerPhone; localStorage.setItem('petspot_my_phone',ownerPhone);"
+          new = "const customer={name:document.getElementById('orderName').value.trim(),phone:document.getElementById('orderPhone').value.trim(),address:document.getElementById('orderAddress').value.trim()}; const ownerPhone=normalizePhone(customer.phone); customer.ownerPhone=ownerPhone; customer.ownerDeviceId=getCustomerDeviceId(); localStorage.setItem('petspot_my_phone',ownerPhone);"
+          if old not in s: raise SystemExit('order customer anchor not found')
+          s=s.replace(old,new,1)
+
+          old = "tx.set(orderRef,{orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});"
+          new = "tx.set(orderRef,{id:orderRef.id,orderNumber,customer,items:orderItems,total,status:'New',createdAt:orderCreatedAt});"
+          if old not in s: raise SystemExit('order firebase anchor not found')
+          s=s.replace(old,new,1)
+
+          # Replace the My Booking & Orders renderer with ownership + delete controls.
+          start=s.find('function renderMyActivity(){')
+          end=s.find('\nfunction renderAdmin(){',start)
+          if start<0 or end<0: raise SystemExit('renderMyActivity block not found')
+          fn=r'''function renderMyActivity(){
+  const input=document.getElementById('myPhone'); const b=document.getElementById('myBookings'); const o=document.getElementById('myOrders'); if(!input||!b||!o)return;
+  const phone=normalizePhone(input.value); const deviceId=getCustomerDeviceId();
+  if(!phone){b.innerHTML='<div class="my-empty">'+(lang==='ar'?'اكتب رقم هاتفك لعرض حجوزاتك.':'Enter your phone number to see your bookings.')+'</div>';o.innerHTML='<div class="my-empty">'+(lang==='ar'?'اكتب رقم هاتفك لعرض طلباتك.':'Enter your phone number to see your orders.')+'</div>';return;}
+  const owns=(x)=>String(x.ownerDeviceId||'')===deviceId || (!x.ownerDeviceId && normalizePhone(x.ownerPhone||x.phone)===phone);
+  const bs=getBookings().filter(owns);
+  const os=orders.filter(x=>owns(x.customer||{}));
+  b.innerHTML=bs.length?bs.map(x=>`<article class="my-item"><div class="my-item-head"><strong>${escapeHtml(serviceName(x.service))}</strong><span>${escapeHtml(x.date)} • ${escapeHtml(x.time)}</span></div><div class="my-meta"><div>${lang==='ar'?'الاسم':'Name'}: ${escapeHtml(x.name)}</div><div>${lang==='ar'?'الحيوان':'Pet'}: ${escapeHtml(x.petName)}${x.petType?' ('+escapeHtml(x.petType)+')':''}</div></div>${x.notes?`<div class="my-products">${lang==='ar'?'ملاحظات':'Notes'}: ${escapeHtml(x.notes)}</div>`:''}<button class="btn red" style="margin-top:12px" onclick="deleteMyBooking('${escapeHtml(String(x.id))}')">${lang==='ar'?'حذف الحجز':'Delete Booking'}</button></article>`).join(''):'<div class="my-empty">'+(lang==='ar'?'لا توجد حجوزات لك.':'No bookings found for you.')+'</div>';
+  o.innerHTML=os.length?os.map(order=>`<article class="my-item"><div class="my-item-head"><strong>${escapeHtml(order.orderNumber||'Order')}</strong><strong>${order.total} EGP</strong></div><div class="my-meta"><div>${lang==='ar'?'التاريخ':'Date'}: ${new Date(order.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-US')}</div><div>${lang==='ar'?'الحالة':'Status'}: ${escapeHtml(order.status||'New')}</div></div><div class="my-products">${order.items.map(item=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0"><span>${escapeHtml(productName(item.name))} × ${item.quantity}</span><strong>${item.subtotal} EGP</strong></div>`).join('')}</div><button class="btn red" style="margin-top:12px" onclick="deleteMyOrder('${escapeHtml(String(order.id||''))}')">${lang==='ar'?'حذف الطلب':'Delete Order'}</button></article>`).join(''):'<div class="my-empty">'+(lang==='ar'?'لا توجد طلبات لك.':'No orders found for you.')+'</div>';
+}
+
+async function deleteMyBooking(id){
+  const phone=normalizePhone(document.getElementById('myPhone')?.value||localStorage.getItem('petspot_my_phone')||'');
+  const deviceId=getCustomerDeviceId();
+  const booking=getBookings().find(x=>String(x.id)===String(id));
+  if(!booking || !((booking.ownerDeviceId&&booking.ownerDeviceId===deviceId)||(!booking.ownerDeviceId&&normalizePhone(booking.ownerPhone||booking.phone)===phone))) return alert(lang==='ar'?'لا يمكنك حذف هذا الحجز.':'You cannot delete this booking.');
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الحجز؟':'Delete this booking?'))return;
+  try{
+    if(firebaseConfigured) await db.collection('bookings').doc(String(id)).delete();
+    else setBookings(getBookings().filter(x=>String(x.id)!==String(id)));
+    renderMyActivity(); renderAdmin(); updateBookingTimes();
+  }catch(err){console.error(err);alert(lang==='ar'?'تعذر حذف الحجز.':'Could not delete the booking.');}
+}
+
+async function deleteMyOrder(id){
+  const phone=normalizePhone(document.getElementById('myPhone')?.value||localStorage.getItem('petspot_my_phone')||'');
+  const deviceId=getCustomerDeviceId();
+  const order=orders.find(x=>String(x.id||'')===String(id));
+  if(!order || !((order.customer?.ownerDeviceId&&order.customer.ownerDeviceId===deviceId)||(!order.customer?.ownerDeviceId&&normalizePhone(order.customer?.ownerPhone||order.customer?.phone)===phone))) return alert(lang==='ar'?'لا يمكنك حذف هذا الطلب.':'You cannot delete this order.');
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الطلب؟':'Delete this order?'))return;
+  try{
+    if(firebaseConfigured) await db.collection('orders').doc(String(id)).delete();
+    else { orders=orders.filter(x=>String(x.id)!==String(id)); localStorage.setItem('petspotOrders',JSON.stringify(orders)); }
+    renderMyActivity(); renderAdmin();
+  }catch(err){console.error(err);alert(lang==='ar'?'تعذر حذف الطلب.':'Could not delete the order.');}
+}
+'''
+          s=s[:start]+fn+s[end:]
+
+          # Ensure activity refreshes after the phone field changes.
+          p.write_text(s,encoding='utf-8')
+          print('patched', len(s), 'bytes')
+          PY
+
+      - name: Commit patched site
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Fix My Booking & Orders ownership and deletion'
+          git push
