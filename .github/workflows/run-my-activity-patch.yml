@@ -1,0 +1,34 @@
+name: Run My Booking & Orders Patch
+
+on:
+  push:
+    paths:
+      - '.github/workflows/run-my-activity-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run patch embedded in workflow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          wf=Path('.github/workflows/apply-my-activity-fix.yml').read_text(encoding='utf-8')
+          m=re.search(r"python3 - <<'PY'\n(.*?)\n          PY\n", wf, re.S)
+          if not m: raise SystemExit('embedded patch not found')
+          code=m.group(1)
+          code='\n'.join(line[10:] if line.startswith('          ') else line for line in code.splitlines())
+          Path('/tmp/patch.py').write_text(code,encoding='utf-8')
+          exec(compile(code,'/tmp/patch.py','exec'),{})
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet || (git commit -m 'Fix My Booking & Orders ownership and deletion' && git push)
