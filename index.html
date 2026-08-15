@@ -822,19 +822,57 @@ async function saveEditedProduct(e){e.preventDefault();const p=products[editInde
 function serviceName(s){return lang==='ar'?({'Veterinary Consultation':'استشارة بيطرية','Grooming':'جروومينج','Boarding':'إقامة'}[s]||s):s}
 async function deleteBooking(id){
   try{
+    let booking=null;
     if(firebaseConfigured){
-      await db.collection('bookings').doc(String(id)).delete();
+      const ref=db.collection('bookings').doc(String(id));
+      const snap=await ref.get();
+      booking=snap.exists?{id:String(id),...snap.data()}:{id:String(id)};
+      await ref.delete();
     }else{
+      booking=getBookings().find(x=>String(x.id)===String(id))||{id:String(id)};
       setBookings(getBookings().filter(x=>String(x.id)!==String(id)));
       renderAdmin();
       updateBookingTimes();
+    }
+    if(firebaseConfigured){renderAdmin();updateBookingTimes();}
+    try{
+      const notifyResult=await notifyPetSpot('booking_removed',booking);
+      console.log('Booking removal notification sent:',notifyResult);
+    }catch(notifyErr){
+      console.error('Booking removal notification:',notifyErr);
     }
   }catch(err){
     console.error('Delete booking:',err);
     alert(lang==='ar'?'تعذر حذف الحجز.':'Could not delete the booking.');
   }
 }
-async function deleteOrder(id){if(!confirm(lang==='ar'?'هل تريد حذف هذا الطلب؟':'Delete this order?'))return;if(firebaseConfigured)await db.collection('orders').doc(String(id)).delete();else{orders=orders.filter(x=>x.id!==id);localStorage.setItem('petspotOrders',JSON.stringify(orders));renderAdmin()}}
+async function deleteOrder(id){
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الطلب؟':'Delete this order?'))return;
+  try{
+    let order=null;
+    if(firebaseConfigured){
+      const ref=db.collection('orders').doc(String(id));
+      const snap=await ref.get();
+      order=snap.exists?{id:String(id),...snap.data()}:{id:String(id)};
+      await ref.delete();
+    }else{
+      order=orders.find(x=>String(x.id)===String(id))||{id:String(id)};
+      orders=orders.filter(x=>String(x.id)!==String(id));
+      localStorage.setItem('petspotOrders',JSON.stringify(orders));
+      renderAdmin();
+    }
+    if(firebaseConfigured)renderAdmin();
+    try{
+      const notifyResult=await notifyPetSpot('order_removed',order);
+      console.log('Order removal notification sent:',notifyResult);
+    }catch(notifyErr){
+      console.error('Order removal notification:',notifyErr);
+    }
+  }catch(err){
+    console.error('Delete order:',err);
+    alert(lang==='ar'?'تعذر حذف الطلب.':'Could not delete the order.');
+  }
+}
 function adminLogin(){document.getElementById('modal').classList.add('show');document.getElementById('pass').focus()}
 function closeM(){document.getElementById('modal').classList.remove('show');document.getElementById('pass').value=''}
 function login(){
