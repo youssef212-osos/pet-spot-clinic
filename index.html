@@ -315,7 +315,9 @@ a.whatsapp-float {
 }
 </style>
 
-</head>
+<style id="pet-shop-search-style">
+.pet-shop-search{max-width:720px;margin:0 auto 28px;position:relative}.pet-shop-search input{width:100%;padding:15px 48px 15px 18px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:16px;outline:none;box-shadow:0 4px 14px #00000008}.pet-shop-search input:focus{border-color:var(--green2);box-shadow:0 0 0 3px #08703a18}.pet-shop-search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;pointer-events:none}.pet-shop-no-results{text-align:center;padding:30px;color:var(--muted);font-weight:800;grid-column:1/-1}[dir=rtl] .pet-shop-search input{padding:15px 18px 15px 48px}
+</style></head>
 <body>
 
 <div class="top" data-i18n="top">✨ Premium pet care • Veterinary • Grooming • Boarding • Pet Shop</div>
@@ -369,7 +371,7 @@ a.whatsapp-float {
 <div class="card"><div class="ico">▣</div><h3 data-i18n="shop">Pet Shop</h3><p class="muted" data-i18n="shopDesc2">Quality food, treats, supplements and accessories.</p><button class="btn green" onclick="go('shop')" data-i18n="shopCta">Shop</button></div>
 </div></div></section>
 
-<section id="shop" class="page shop"><div class="section"><div class="center"><span class="eyebrow" data-i18n="shopEyebrow">PET SHOP</span><h2 data-i18n="shopTitle">Quality products for happy pets.</h2><p class="muted" data-i18n="shopDescLong">Browse products, add them to your cart, and place an order.</p></div><div id="products" class="products"></div></div></section>
+<section id="shop" class="page shop"><div class="section"><div class="center"><span class="eyebrow" data-i18n="shopEyebrow">PET SHOP</span><h2 data-i18n="shopTitle">Quality products for happy pets.</h2><p class="muted" data-i18n="shopDescLong">Browse products, add them to your cart, and place an order.</p></div><div class="pet-shop-search"><span class="pet-shop-search-icon">🔎</span><input id="petShopSearch" type="search" placeholder="Search products..." oninput="shopSearchTerm=this.value;renderProducts()" autocomplete="off"></div><div id="products" class="products"></div></div></section>
 
 <section id="book" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="bookEyebrow">BOOK ONLINE</span><h2 data-i18n="bookTitle">Book an Appointment</h2><p class="muted" data-i18n="bookDesc">Schedule a veterinary consultation, grooming session, or boarding stay.</p></div><div class="form">
 <div class="choices"><button type="button" class="choice sel" data-service="Veterinary Consultation" onclick="service(this)">♧<br><span data-i18n="veterinary">Veterinary</span></button><button type="button" class="choice" data-service="Grooming" onclick="service(this)">✂<br><span data-i18n="grooming">Grooming</span></button><button type="button" class="choice" data-service="Boarding" onclick="service(this)">⌂<br><span data-i18n="boarding">Boarding</span></button></div>
@@ -702,9 +704,13 @@ async function booking(e){
 function productName(n){const m={'Premium Dry Food':'طعام جاف فاخر','Chicken Dry Food':'طعام جاف بالدجاج','Puppy Food':'طعام جاف للجراء','Cat Treats':'مكافآت للقطط','Pet Shampoo':'شامبو للحيوانات','Pet Nail Clipper':'مقص أظافر للحيوانات','Leather Leash':'مقود جلدي','Tick & Flea Collar':'طوق ضد القراد والبراغيث','Pet Travel Carrier':'حقيبة نقل للحيوانات','Training Pads Pack':'فوط تدريب للحيوانات'};return lang==='ar'?(m[n]||n):n}
 function categoryName(n){const m={'Dry Food':'طعام جاف','Treats':'مكافآت','Hygiene':'العناية والنظافة','Grooming':'جروومينج','Accessories':'إكسسوارات','Healthcare':'رعاية صحية'};return lang==='ar'?(m[n]||n):n}
 
+let shopSearchTerm='';
 function renderProducts(){
 const el=document.getElementById('products');if(!el)return;
-el.innerHTML=products.map((p,i)=>`<article class="product">
+const q=(shopSearchTerm||'').trim().toLowerCase();
+const visibleProducts=products.filter(p=>{if(!q)return true;const name=String(p.name||'').toLowerCase();const translated=String(productName(p.name)||'').toLowerCase();const cat=String(p.category||'').toLowerCase();const translatedCat=String(categoryName(p.category)||'').toLowerCase();return name.includes(q)||translated.includes(q)||cat.includes(q)||translatedCat.includes(q)});
+if(!visibleProducts.length){el.innerHTML='<div class="pet-shop-no-results">No products found</div>';return;}
+el.innerHTML=visibleProducts.map((p,i)=>`<article class="product">
 <div class="visual"><img src="${escapeHtml(p.image||'')}" alt="${escapeHtml(productName(p.name))}" onerror="this.style.display='none';this.nextElementSibling.style.display='none'"><div style="display:${'${p.image}'?'none':'grid'};height:100%;place-items:center;color:var(--muted);font-weight:800;text-align:center;padding:20px">${escapeHtml(productName(p.name))}</div></div>
 <div class="body"><h3>${escapeHtml(productName(p.name))}</h3><p class="muted">${escapeHtml(categoryName(p.category))}</p>
 <div class="stockText">${tr('available')}: ${p.stock}</div>
