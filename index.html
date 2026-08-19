@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pet Spot Clinic</title>
+<link rel="icon" type="image/png" sizes="128x128" href="petspot-favicon.png">
+<link rel="apple-touch-icon" href="petspot-favicon.png">
+<style>
+:root{--green:#063b16;--green2:#08703a;--red:#ef514b;--cream:#fbfaf5;--ink:#172019;--muted:#68706b;--line:#e2e8e2;--white:#fff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:Inter,Arial,sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}.top{background:#eee5ff;text-align:center;padding:13px 18px;font-weight:800}
+.nav{position:sticky;top:0;z-index:20;background:#fffdf9ee;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);min-height:74px;display:flex;align-items:center;gap:20px;padding:10px max(18px,calc((100% - 1160px)/2))}
+.brand{font-weight:900;font-size:21px;display:flex;align-items:center;gap:7px;margin-inline-end:auto}.brand small{font-weight:600;font-size:12px;display:block}.brandLogo{width:30px;height:30px;flex:0 0 30px;object-fit:contain;display:block;border:0;border-radius:0;background:#fff}
+.links{display:flex;gap:20px}.links button,.mobileLinks button{border:0;background:none;color:var(--ink);font-weight:750}.lang{border:0;background:none;font-weight:850;padding:10px}.btn{border:0;border-radius:12px;padding:12px 18px;font-weight:850}.green{background:var(--green);color:#fff}.red{background:var(--red);color:#fff}
+.hamb{display:none;border:0;background:none;font-size:28px}.page{display:none}.page.active{display:block}.hero{background:linear-gradient(115deg,#063b16,#0b5729 60%,#e6efe7);color:#fff}
+.heroIn{max-width:1160px;margin:auto;padding:92px 22px;display:grid;grid-template-columns:1.25fr .75fr;gap:55px;align-items:center}.pill{display:inline-block;background:#e2f1e5;color:var(--green);padding:8px 14px;border-radius:999px;font-size:12px;font-weight:900}
+.heroTitle{display:flex;align-items:center;gap:16px}.heroLogo{width:72px;height:72px;object-fit:contain;flex:0 0 72px}.hero h1{font:700 clamp(45px,7vw,78px)/.98 Georgia,serif;margin:18px 0}.hero p{font-size:19px;line-height:1.7;color:#e0ebe3;max-width:680px}.heroCard{border:1px solid #ffffff35;background:#ffffff12;border-radius:25px;padding:28px}.heroCard h2{font:700 30px Georgia,serif}
+.stat{display:flex;justify-content:space-between;padding:17px 0;border-top:1px solid #ffffff2c}.stat b{font-size:25px}.section{max-width:1160px;margin:auto;padding:78px 22px}.center{text-align:center;max-width:760px;margin:0 auto 42px}
+.eyebrow{font-size:12px;letter-spacing:1.7px;font-weight:900;color:var(--green2)}h2{font:700 clamp(34px,5vw,52px)/1.05 Georgia,serif;margin:10px 0 14px}.muted{color:var(--muted);line-height:1.65}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:25px;min-height:205px}.ico{width:50px;height:50px;border-radius:14px;background:#e7f2e9;color:var(--green);display:grid;place-items:center;font-size:22px;margin-bottom:18px}
+.card h3{font:700 22px Georgia,serif;margin:0 0 9px}.stats{background:var(--green);color:#fff}.statsIn{max-width:1160px;margin:auto;padding:50px 22px;display:grid;grid-template-columns:repeat(4,1fr);text-align:center;gap:25px}.stats b{font:700 40px Georgia,serif;display:block}
+.cta{background:var(--green);color:#fff;border-radius:28px;padding:60px 25px;text-align:center}.shop{background:#f1f4ef}.products{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.product{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}.visual{height:220px;background:#eee;display:grid;place-items:center;color:var(--green);font-weight:900;font-family:Georgia,serif;text-align:center;padding:0}.visual img{width:100%;height:100%;object-fit:cover;display:block}
+.body{padding:20px}.body h3{margin:0 0 8px}.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.price{font-weight:900}.out{color:#a33;font-weight:800}.stockText{font-weight:800;margin:8px 0}
+.form{max-width:850px;margin:auto;background:#fff;border:1px solid var(--line);border-radius:24px;padding:30px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}.field{display:flex;flex-direction:column;gap:7px}.full{grid-column:1/-1}.field input,.field select,.field textarea{border:1px solid #d7ded8;border-radius:10px;padding:13px;background:#fff}.field textarea{min-height:110px}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.choice{border:1px solid var(--line);border-radius:13px;background:#fff;padding:16px;font-weight:750}.choice.sel{background:#dceee1;border-color:#167442}
+.footer{background:#001d08;color:#fff}.foot{max-width:1160px;margin:auto;padding:55px 22px 25px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:30px}.foot button{display:block;border:0;background:none;color:#dbe5dc;margin:12px 0;padding:0}.copy{max-width:1160px;margin:auto;border-top:1px solid #ffffff22;padding:20px 22px;color:#aab8ad}
+/* WhatsApp: permanently fixed to the visible viewport */
+.wa{
+  position:fixed !important;
+  right:12px !important;
+  left:auto !important;
+  bottom:calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  top:auto !important;
+  width:58px !important;
+  height:58px !important;
+  min-width:58px !important;
+  min-height:58px !important;
+  max-width:58px !important;
+  max-height:58px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border-radius:50% !important;
+  background:#25d366 !important;
+  color:#fff !important;
+  display:grid !important;
+  place-items:center !important;
+  text-decoration:none !important;
+  z-index:2147483647 !important;
+  transform:none !important;
+  translate:none !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
+  clip:auto !important;
+  clip-path:none !important;
+  box-shadow:0 5px 18px #0003 !important;
+  pointer-events:auto !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+.wa svg{width:32px !important;height:32px !important;display:block !important;flex:none !important}
+
+/* On small screens keep the complete circle safely inside the screen. */
+@media (max-width:600px){
+  .wa{
+    right:10px !important;
+    bottom:calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    width:56px !important;
+    height:56px !important;
+    min-width:56px !important;
+    min-height:56px !important;
+    max-width:56px !important;
+    max-height:56px !important;
+  }
+  .wa svg{width:31px !important;height:31px !important}
+}
+.cart{position:fixed;right:20px;bottom:90px;width:min(430px,calc(100% - 40px));max-height:78vh;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 18px 55px #0003;display:none;z-index:40}.cart.show{display:block}
+.cartItem{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}.cartItem img{width:58px;height:58px;object-fit:cover;border-radius:10px}
+.qty{display:flex;align-items:center;gap:7px;justify-content:center}.qty button{border:0;background:#eee;border-radius:8px;padding:5px 10px;font-weight:900}
+.adminStats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:25px 0}.adminStat{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px}.adminStat b{font-size:30px;display:block}
+.booking-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin:12px 0}.booking-head{display:flex;justify-content:space-between;gap:15px;margin-bottom:15px}.booking-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;color:var(--muted)}.booking-notes{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.adminTable{overflow:auto;background:#fff;border:1px solid var(--line);border-radius:18px}.adminTable table{width:100%;border-collapse:collapse;min-width:850px}.adminTable th,.adminTable td{padding:14px;border-bottom:1px solid var(--line);text-align:start;vertical-align:middle}
+.adminProduct{display:flex;align-items:center;gap:10px}.adminProduct img{width:55px;height:55px;object-fit:cover;border-radius:9px}.adminInput{width:90px;padding:9px;border:1px solid #d7ded8;border-radius:8px}
+.modal{position:fixed;inset:0;background:#0008;display:none;place-items:center;padding:20px;z-index:100}.modal.show{display:grid}.modalBox{background:#fff;border-radius:20px;padding:25px;width:min(500px,100%)}.mobileLinks{display:none;background:#fff;padding:15px 22px;border-bottom:1px solid #ddd}.mobileLinks button{display:block;margin:12px 0;font-size:16px}.mobileLinks button[aria-label="Admin login"]{font-size:22px}
+
+.my-orders-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px}.my-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}.my-card h3{margin:0 0 12px;font:700 24px Georgia,serif}.my-empty{padding:22px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);text-align:center}.my-item{border:1px solid var(--line);border-radius:14px;padding:15px;margin:10px 0}.my-item-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px}.my-meta{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;color:var(--muted);font-size:14px}.my-products{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+@media(max-width:600px){.my-orders-grid{grid-template-columns:1fr}.my-meta{grid-template-columns:1fr}}
+.notice{padding:14px 16px;background:#e8f5ea;color:var(--green);border-radius:12px;margin-top:15px;display:none}.notice.show{display:block}.orderFormGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.orderField{display:flex;flex-direction:column;gap:6px}.orderField.full{grid-column:1/-1}.orderField input,.orderField textarea{padding:12px;border:1px solid #d7ded8;border-radius:10px}.orderField textarea{min-height:90px}
+.orderSummary{background:#f5f7f3;padding:15px;border-radius:12px;margin:15px 0}.orderSummaryRow{display:flex;justify-content:space-between;gap:10px;padding:7px 0} .paymentMethods{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:15px 0}.paymentChoice{border:1px solid var(--line);border-radius:13px;background:#fff;padding:15px;cursor:pointer;display:block}.paymentChoice.selected{background:#dceee1;border-color:#167442}.paymentChoice input{margin-inline-end:7px}.paymentChoice small{display:block;color:var(--muted);margin-top:6px}@media(max-width:600px){.paymentMethods{grid-template-columns:1fr}}
+@media(max-width:850px){.links{display:none}.hamb{display:block}.heroIn{grid-template-columns:1fr;padding:75px 22px}.heroCard{display:none}.cards{grid-template-columns:1fr 1fr}.products{grid-template-columns:1fr 1fr}.foot{grid-template-columns:1fr 1fr}.booking-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.nav{gap:10px}.brand{font-size:18px}.brandLogo{width:27px;height:27px;flex-basis:27px}.lang{font-size:14px}.adminBtn{padding:10px 13px}.cards,.products,.grid,.choices,.foot,.adminStats,.booking-grid,.orderFormGrid{grid-template-columns:1fr}.hero h1{font-size:50px}.hero p{font-size:17px}.section{padding:60px 18px}.booking-head{flex-direction:column}.cart{right:10px;width:calc(100% - 20px)}.cartItem{flex-direction:column;align-items:stretch}}
+[dir=rtl] .brand{margin-inline-end:0;margin-inline-start:auto}[dir=rtl] .heroIn{text-align:right}[dir=rtl] .top{text-align:center}
+</style>
+
+
+
+
+<style id="whatsapp-viewport-lock">
+#floatingWhatsapp.wa{
+  position: fixed !important;
+  right: 24px !important;
+  bottom: 24px !important;
+  top: auto !important;
+  left: auto !important;
+  margin: 0 !important;
+  width: 62px !important;
+  height: 62px !important;
+  min-width: 62px !important;
+  min-height: 62px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483647 !important;
+  transform: translateZ(0) !important;
+  box-sizing: border-box !important;
+  overflow: visible !important;
+}
+#floatingWhatsapp.wa svg{
+  width: 35px !important;
+  height: 35px !important;
+  flex: 0 0 auto !important;
+}
+@media (max-width: 600px){
+  #floatingWhatsapp.wa{
+    right: 16px !important;
+    bottom: 16px !important;
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    min-height: 58px !important;
+  }
+}
+</style>
+
+
+<style id="latest-whatsapp-floating-fix">
+/* WhatsApp Floating Button */
+.whatsapp-float {
+  position: fixed !important;
+  right: 16px !important;
+  bottom: 20px !important;
+  width: 58px !important;
+  height: 58px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  z-index: 999999 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  left: auto !important;
+  top: auto !important;
+}
+
+@media (max-width: 768px) {
+  .whatsapp-float {
+    position: fixed !important;
+    right: 14px !important;
+    bottom: 18px !important;
+    width: 56px !important;
+    height: 56px !important;
+  }
+}
+
+</style>
+
+<style id="final-site-width-and-whatsapp-fix">
+/* FINAL: make the website occupy the whole mobile viewport */
+html,
+body {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+}
+
+body {
+  overflow-y: auto !important;
+}
+
+/* Every main section stays inside the viewport */
+.page,
+.top,
+.nav,
+.mobileLinks,
+.footer,
+.hero,
+.shop,
+.stats,
+.section,
+.foot,
+.copy {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* FINAL WhatsApp:
+   fixed to the viewport, but completely inside the website/screen */
+#floatingWhatsapp.wa,
+#floatingWhatsapp.whatsapp-float,
+.wa.whatsapp-float {
+  position: fixed !important;
+  right: 16px !important;
+  left: auto !important;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  top: auto !important;
+
+  width: 58px !important;
+  height: 58px !important;
+  min-width: 58px !important;
+  min-height: 58px !important;
+  max-width: 58px !important;
+  max-height: 58px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  border-radius: 50% !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  z-index: 2147483647 !important;
+  transform: translateZ(0) !important;
+  overflow: hidden !important;
+}
+
+/* Mobile: keep the whole circle comfortably inside the right edge */
+@media (max-width: 600px) {
+  #floatingWhatsapp.wa,
+  #floatingWhatsapp.whatsapp-float,
+  .wa.whatsapp-float {
+    right: 14px !important;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    max-width: 56px !important;
+    max-height: 56px !important;
+  }
+}
+</style>
+
+
+<style id="final-whatsapp-perfect-fix">
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+.whatsapp-float,
+.wa,
+a.whatsapp-float {
+  position: fixed !important;
+  right: 14px !important;
+  left: auto !important;
+  bottom: 16px !important;
+  top: auto !important;
+
+  width: 56px !important;
+  height: 56px !important;
+  min-width: 56px !important;
+  min-height: 56px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  transform: none !important;
+  z-index: 2147483647 !important;
+  overflow: hidden !important;
+}
+
+.whatsapp-float i,
+.whatsapp-float svg,
+.whatsapp-float img,
+.wa i,
+.wa svg,
+.wa img {
+  width: 30px !important;
+  height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  object-fit: contain !important;
+}
+
+@media (max-width: 768px) {
+  .whatsapp-float,
+  .wa,
+  a.whatsapp-float {
+    right: 14px !important;
+    bottom: 16px !important;
+    width: 56px !important;
+    height: 56px !important;
+  }
+}
+</style>
+
+</head>
+<body>
+
+<div class="top" data-i18n="top">✨ Premium pet care • Veterinary • Grooming • Boarding • Pet Shop</div>
+
+<nav class="nav">
+<button class="hamb" onclick="menu()">☰</button>
+<div class="brand"><img class="brandLogo" src="data:image/jpeg;base64,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" alt="Pet Spot Logo"><span>Pet Spot<br><small>Clinic</small></span></div>
+<div class="links">
+<button onclick="go('home')" data-i18n="home">Home</button>
+<button onclick="go('services')" data-i18n="services">Services</button>
+<button onclick="go('shop')" data-i18n="shop">Pet Shop</button>
+<button onclick="go('book')" data-i18n="bookNav">Book Appointment</button>
+<button onclick="go('myActivity')" data-i18n="myActivity">My Booking & Orders</button>
+<button onclick="go('about')" data-i18n="about">About Us</button>
+<button onclick="go('contact')" data-i18n="contact">Contact</button><button onclick="adminLogin()" aria-label="Admin login">🔒</button>
+</div>
+<button class="lang" onclick="toggleLanguage()">العربية</button>
+
+</nav>
+
+<div id="mobile" class="mobileLinks">
+<button onclick="go('home')" data-i18n="home">Home</button><button onclick="go('services')" data-i18n="services">Services</button><button onclick="go('shop')" data-i18n="shop">Pet Shop</button><button onclick="go('book')" data-i18n="bookNav">Book Appointment</button><button onclick="go('myActivity')" data-i18n="myActivity">My Booking & Orders</button><button onclick="go('about')" data-i18n="about">About Us</button><button onclick="go('contact')" data-i18n="contact">Contact</button><button onclick="adminLogin()" aria-label="Admin login">🔒</button>
+</div>
+
+<section id="home" class="page active">
+<div class="hero"><div class="heroIn"><div>
+<span class="pill" data-i18n="open">OPEN 7 DAYS A WEEK</span>
+<h1><span data-i18n="hero1">Your Pet's</span><br><span data-i18n="hero2">Second Home.</span></h1>
+<p data-i18n="heroDesc">Premium veterinary care, professional grooming, boarding, and quality pet supplies — all under one roof in Cairo.</p>
+<button class="btn red" onclick="go('book')" data-i18n="bookCta">📅 Book an Appointment</button>
+<button class="btn" style="background:transparent;color:#fff;border:1px solid #ffffff66" onclick="go('shop')" data-i18n="shopCta">🛍 Shop Now</button>
+</div>
+<div class="heroCard"><h2 data-i18n="everything">Everything your pet needs.</h2><div class="stat"><span data-i18n="vetCare">Veterinary care</span><b>01</b></div><div class="stat"><span data-i18n="grooming">Grooming</span><b>02</b></div><div class="stat"><span data-i18n="boarding">Boarding</span><b>03</b></div><div class="stat"><span data-i18n="shop">Pet Shop</span><b>04</b></div></div>
+</div></div>
+
+<div class="section"><div class="center"><span class="eyebrow" data-i18n="why">WHY CHOOSE PET SPOT</span><h2 data-i18n="homeTitle">Comprehensive care for your beloved pets under one roof.</h2><p class="muted" data-i18n="homeDesc">Professional services, trusted products, and a team that treats every pet like family.</p></div>
+<div class="cards">
+<div class="card"><div class="ico">♧</div><h3 data-i18n="vetClinic">Veterinary Clinic</h3><p class="muted" data-i18n="vetDesc">Consultations, vaccines, diagnostics, and professional veterinary care.</p></div>
+<div class="card"><div class="ico">✂</div><h3 data-i18n="professionalGroom">Professional Grooming</h3><p class="muted" data-i18n="groomDesc">Baths, haircuts, nail trimming, ear cleaning and breed-specific care.</p></div>
+<div class="card"><div class="ico">⌂</div><h3 data-i18n="petBoarding">Pet Boarding</h3><p class="muted" data-i18n="boardDesc">Safe, comfortable and closely monitored boarding stays.</p></div>
+<div class="card"><div class="ico">▣</div><h3 data-i18n="shop">Pet Shop</h3><p class="muted" data-i18n="shopDesc">Food, treats, supplements, toys and accessories.</p></div>
+</div></div>
+<div class="stats"><div class="statsIn"><div><b>2,500+</b><span data-i18n="happyPets">Happy Pets</span></div><div><b>8+</b><span data-i18n="years">Years Experience</span></div><div><b>12</b><span data-i18n="team">Expert Team</span></div><div><b>200+</b><span data-i18n="products">Products</span></div></div></div>
+<div class="section"><div class="cta"><span class="pill" data-i18n="ready">READY TO VISIT?</span><h2 data-i18n="family">We treat every pet like family.</h2><p data-i18n="ctaDesc">Book your first appointment and experience the Pet Spot difference.</p><button class="btn red" onclick="go('book')" data-i18n="bookNow">Book Now</button></div></div>
+</section>
+
+<section id="services" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="servicesEyebrow">OUR SERVICES</span><h2 data-i18n="servicesTitle">Professional care from nose to tail.</h2><p class="muted" data-i18n="servicesDesc">Choose the service your pet needs and book directly online.</p></div><div class="cards">
+<div class="card"><div class="ico">♧</div><h3 data-i18n="vetConsult">Veterinary Consultation</h3><p class="muted" data-i18n="vetConsultDesc">General consultations, vaccinations, health checks, diagnostics and more.</p><button class="btn green" onclick="go('book')" data-i18n="book">Book</button></div>
+<div class="card"><div class="ico">✂</div><h3 data-i18n="grooming">Grooming</h3><p class="muted" data-i18n="groomDesc2">Bathing, drying, haircut, nails and ear cleaning.</p><button class="btn green" onclick="go('book')" data-i18n="book">Book</button></div>
+<div class="card"><div class="ico">⌂</div><h3 data-i18n="boarding">Boarding</h3><p class="muted" data-i18n="boardDesc2">Comfortable stays with supervision and a pet-friendly environment.</p><button class="btn green" onclick="go('book')" data-i18n="book">Book</button></div>
+<div class="card"><div class="ico">▣</div><h3 data-i18n="shop">Pet Shop</h3><p class="muted" data-i18n="shopDesc2">Quality food, treats, supplements and accessories.</p><button class="btn green" onclick="go('shop')" data-i18n="shopCta">Shop</button></div>
+</div></div></section>
+
+<section id="shop" class="page shop"><div class="section"><div class="center"><span class="eyebrow" data-i18n="shopEyebrow">PET SHOP</span><h2 data-i18n="shopTitle">Quality products for happy pets.</h2><p class="muted" data-i18n="shopDescLong">Browse products, add them to your cart, and place an order.</p></div><div id="products" class="products"></div></div></section>
+
+<section id="book" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="bookEyebrow">BOOK ONLINE</span><h2 data-i18n="bookTitle">Book an Appointment</h2><p class="muted" data-i18n="bookDesc">Schedule a veterinary consultation, grooming session, or boarding stay.</p></div><div class="form">
+<div class="choices"><button type="button" class="choice sel" data-service="Veterinary Consultation" onclick="service(this)">♧<br><span data-i18n="veterinary">Veterinary</span></button><button type="button" class="choice" data-service="Grooming" onclick="service(this)">✂<br><span data-i18n="grooming">Grooming</span></button><button type="button" class="choice" data-service="Boarding" onclick="service(this)">⌂<br><span data-i18n="boarding">Boarding</span></button></div>
+<form id="bookingForm" onsubmit="booking(event)" style="margin-top:20px"><div class="grid">
+<div class="field"><label data-i18n="name">Your Name *</label><input name="name" required></div><div class="field"><label data-i18n="phone">Phone Number *</label><input name="phone" required type="tel"></div><div class="field"><label data-i18n="petName">Pet Name *</label><input name="petName" required></div><div class="field"><label data-i18n="petType">Pet Type</label><input name="petType" data-ph-en="e.g. Dog, Cat, Bird..." data-ph-ar="مثال: كلب، قطة، طائر..." placeholder="e.g. Dog, Cat, Bird..."></div>
+<div class="field"><label data-i18n="date">Preferred Date *</label><input name="date" required type="date"></div><div class="field"><label data-i18n="time">Preferred Time *</label><select name="time" id="bookingTime" required><option value="" data-i18n="selectTime">Select time</option></select></div><div class="field full"><label data-i18n="notes">Additional Notes</label><textarea name="notes"></textarea></div>
+</div><div id="bookNotice" class="notice"></div><button class="btn green" style="width:100%;margin-top:18px" data-i18n="confirm">📅 Confirm Booking</button></form></div></div></section>
+
+<section id="myActivity" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="myActivityEyebrow">MY ACTIVITY</span><h2 data-i18n="myActivityTitle">My Booking & Orders</h2><p class="muted" data-i18n="myActivityDesc">Only bookings and orders that match your phone number are shown here.</p></div><div class="form"><div class="field"><label data-i18n="myPhoneLabel">Your Phone Number</label><input id="myPhone" type="tel" autocomplete="tel" placeholder="010..." oninput="renderMyActivity()"></div><div id="myActivityNotice" class="notice"></div></div><div class="my-orders-grid"><div class="my-card"><h3 data-i18n="myBookingsTitle">My Bookings</h3><div id="myBookings"></div></div><div class="my-card"><h3 data-i18n="myOrdersTitle">My Orders</h3><div id="myOrders"></div></div></div></div></section>
+
+<section id="about" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="aboutEyebrow">ABOUT PET SPOT</span><h2 data-i18n="aboutTitle">Your trusted partner for premium pet care.</h2><p class="muted" data-i18n="aboutDesc">Pet Spot Clinic brings veterinary care, grooming, boarding and a curated pet shop together in one convenient destination in Cairo.</p></div><div class="cards">
+<div class="card"><h3 data-i18n="aboutTeam">Experienced Team</h3><p class="muted" data-i18n="aboutTeamDesc">Professional staff focused on safe, caring and respectful treatment.</p></div><div class="card"><h3 data-i18n="aboutProducts">Quality Products</h3><p class="muted" data-i18n="aboutProductsDesc">We stock carefully selected pet food, supplements and accessories.</p></div><div class="card"><h3 data-i18n="aboutLocation">Convenient Location</h3><p class="muted" data-i18n="aboutLocationDesc">Easy to reach in El Basatin with practical access and parking.</p></div><div class="card"><h3 data-i18n="aboutFirst">Pet First</h3><p class="muted" data-i18n="aboutFirstDesc">Every decision starts with comfort, safety and wellbeing.</p></div>
+</div></div></section>
+
+<section id="contact" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="contactEyebrow">CONTACT</span><h2 data-i18n="contactTitle">Come visit Pet Spot.</h2><p class="muted" data-i18n="contactDesc">We are here to help with your pet's next visit.</p></div><div class="cards">
+<div class="card"><h3 data-i18n="phoneTitle">📞 Phone</h3><p>010 66363331</p><a class="btn green" href="tel:01066363331" data-i18n="call">Call Us</a></div><div class="card"><h3>💬 <span data-i18n="whatsapp">WhatsApp</span></h3><p data-i18n="chat">Chat with Pet Spot directly.</p><a class="btn green" href="https://wa.me/201066363331" data-i18n="whatsapp">WhatsApp</a></div><div class="card"><h3 data-i18n="location">📍 Location</h3><p>El-Share' El-Togary, Bavaria Buildings, El Basatin Sharkeya, El Basatin, Cairo, Egypt.</p></div><div class="card"><h3 data-i18n="hours">🕒 Hours</h3><p data-i18n="hoursDesc">Open 7 days a week. Contact the clinic for today's exact hours.</p></div>
+</div></div></section>
+
+<section id="admin" class="page"><div class="section"><div class="center"><span class="eyebrow" data-i18n="adminEyebrow">ADMIN DASHBOARD</span><h2 data-i18n="adminTitle">Pet Spot Manager</h2><p class="muted" data-i18n="adminDesc">Manage bookings, orders and product availability from one place.</p></div>
+<div id="notificationStatus" class="notice show" style="display:block;margin:18px 0;background:#fff8df;color:#6b5600;border:1px solid #f0d77a"><strong>🔔 Notifications:</strong> <span id="notificationStatusText">Checking notification permission…</span></div>
+<div class="adminStats"><div class="adminStat"><b id="ab">0</b><span data-i18n="bookings">Bookings</span></div><div class="adminStat"><b id="ap">10</b><span data-i18n="products">Products</span></div><div class="adminStat"><b id="ao">0</b><span data-i18n="orders">Orders</span></div></div>
+<h2 style="margin-top:35px" data-i18n="bookings">Bookings</h2><div id="adminBookings"></div>
+<h2 style="margin-top:40px" data-i18n="orders">Orders</h2><div id="adminOrders"></div>
+<h2 style="margin-top:40px" data-i18n="shopManager">Pet Shop Manager</h2>
+<div class="adminTable"><table><thead><tr><th data-i18n="product">Product</th><th data-i18n="category">Category</th><th data-i18n="price">Price</th><th data-i18n="stock">Stock</th><th data-i18n="action">Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+</div></section>
+
+<footer class="footer"><div class="foot"><div><div class="brand"><span>Pet Spot<br><small>Clinic</small></span></div><p data-i18n="footerDesc">Your trusted partner for premium pet care, quality products, and professional services in Cairo.</p></div><div><h3 data-i18n="quick">Quick Links</h3><button onclick="go('home')" data-i18n="home">Home</button><button onclick="go('services')" data-i18n="services">Services</button><button onclick="go('shop')" data-i18n="shop">Pet Shop</button><button onclick="go('about')" data-i18n="about">About Us</button><button onclick="go('contact')" data-i18n="contact">Contact</button></div><div><h3 data-i18n="services">Services</h3><button onclick="go('book')" data-i18n="veterinary">Veterinary</button><button onclick="go('book')" data-i18n="grooming">Grooming</button><button onclick="go('book')" data-i18n="boarding">Boarding</button><button onclick="go('book')" data-i18n="bookNav">Book Appointment</button></div><div><h3 data-i18n="contact">Contact</h3><p>010 66363331</p><p>El Basatin, Cairo</p><a href="https://wa.me/201066363331" style="color:#dbe5dc" data-i18n="whatsapp">WhatsApp</a></div></div><div class="copy">© 2026 Pet Spot Clinic. <span data-i18n="rights">All rights reserved.</span></div></footer>
+
+<a id="floatingWhatsapp" class="wa whatsapp-float" href="https://wa.me/201066363331" aria-label="WhatsApp" title="WhatsApp">
+<svg viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+<path fill="currentColor" d="M19.11 17.04c-.28-.14-1.64-.81-1.89-.9-.25-.09-.44-.14-.63.14-.19.28-.72.9-.88 1.09-.16.19-.32.21-.6.07-.28-.14-1.18-.43-2.25-1.39-.83-.74-1.39-1.65-1.55-1.93-.16-.28-.02-.43.12-.57.13-.13.28-.32.42-.49.14-.16.19-.28.28-.47.09-.19.05-.35-.02-.49-.07-.14-.63-1.52-.86-2.08-.23-.55-.46-.48-.63-.49h-.54c-.19 0-.49.07-.74.35-.25.28-.98.96-.98 2.34s1 2.72 1.14 2.91c.14.19 1.96 2.99 4.75 4.19.66.28 1.18.45 1.58.58.66.21 1.26.18 1.73.11.53-.08 1.64-.67 1.87-1.31.23-.65.23-1.2.16-1.31-.07-.12-.25-.19-.53-.33z"/>
+<path fill="currentColor" d="M16.02 3.2c-7.07 0-12.82 5.75-12.82 12.82 0 2.26.59 4.39 1.72 6.27L3.1 28.8l6.66-1.75a12.77 12.77 0 0 0 6.26 1.64h.01c7.07 0 12.82-5.75 12.82-12.82S23.09 3.2 16.02 3.2zm0 23.17h-.01a10.3 10.3 0 0 1-5.25-1.43l-.38-.23-3.95 1.04 1.06-3.85-.25-.4a10.34 10.34 0 1 1 8.78 4.87z"/>
+</svg>
+</a>
+
+<div id="cart" class="cart">
+<div class="row"><h3 data-i18n="cartTitle">Shopping Cart</h3><button onclick="toggleCart()">✕</button></div>
+<div id="cartItems"></div>
+<div class="row" style="margin-top:15px"><b data-i18n="total">Total</b><b id="total">0 EGP</b></div>
+<button class="btn red" style="width:100%;margin-top:15px" onclick="placeOrder()" data-i18n="placeOrder">Place Order</button>
+</div>
+
+<div id="orderModal" class="modal"><div class="modalBox">
+<h2 data-i18n="customerInfo">Customer Information</h2>
+<p class="muted" data-i18n="customerInfoDesc">Enter your details to complete your order.</p>
+<form id="orderForm" onsubmit="submitOrder(event)">
+<div class="orderFormGrid">
+<div class="orderField"><label data-i18n="name">Your Name *</label><input id="orderName" required></div>
+<div class="orderField"><label data-i18n="phone">Phone Number *</label><input id="orderPhone" type="tel" required></div>
+<div class="orderField full"><label data-i18n="address">Address *</label><textarea id="orderAddress" required></textarea></div>
+</div>
+<div id="orderSummary" class="orderSummary"></div>
+<div class="full">
+<label style="font-weight:850;display:block;margin-bottom:8px" data-i18n="paymentMethod">Payment method</label>
+<div class="paymentMethods">
+<label class="paymentChoice selected" id="cashPaymentChoice"><input type="radio" name="paymentMethod" value="cash" checked onchange="selectPaymentMethod(this.value)"><strong data-i18n="cashPayment">Cash on delivery</strong><small data-i18n="cashPaymentDesc">Pay when your order is delivered.</small></label>
+<label class="paymentChoice" id="visaPaymentChoice"><input type="radio" name="paymentMethod" value="visa" onchange="selectPaymentMethod(this.value)"><strong data-i18n="visaPayment">Visa / Mastercard</strong><small data-i18n="visaPaymentDesc">Secure payment through Paymob.</small></label>
+</div>
+</div>
+<div style="display:flex;gap:10px;margin-top:15px"><button class="btn green" style="flex:1" type="submit" data-i18n="confirmOrder">Confirm Order</button><button class="btn" style="flex:1;background:#eee" type="button" onclick="closeOrderModal()" data-i18n="cancel">Cancel</button></div>
+</form>
+</div></div>
+
+<div id="editModal" class="modal"><div class="modalBox">
+<h2 data-i18n="editProduct">Edit Product</h2>
+<form id="editProductForm" onsubmit="saveEditedProduct(event)">
+<input type="hidden" id="editIndex">
+<div class="field"><label data-i18n="productName">Product Name</label><input id="editName" required></div>
+<div class="field" style="margin-top:12px"><label data-i18n="price">Price</label><input id="editPrice" type="number" min="0" required></div>
+<div class="field" style="margin-top:12px"><label data-i18n="stock">Stock</label><input id="editStock" type="number" min="0" required></div>
+<div class="field" style="margin-top:12px"><label data-i18n="imageUrl">Image URL</label><input id="editImage" required></div>
+<div style="display:flex;gap:10px;margin-top:18px"><button class="btn green" style="flex:1" type="submit" data-i18n="save">Save</button><button class="btn" style="flex:1;background:#eee" type="button" onclick="closeEditModal()" data-i18n="cancel">Cancel</button></div>
+</form>
+</div></div>
+
+<div id="modal" class="modal"><div class="modalBox"><h2 data-i18n="adminLoginTitle">Admin Login</h2><p class="muted" data-i18n="adminPasswordDesc">Enter the admin password to continue.</p><input id="pass" type="password" inputmode="numeric" style="width:100%;padding:13px;border:1px solid #d7ded8;border-radius:10px" placeholder="Password"><div style="display:flex;gap:10px;margin-top:15px"><button class="btn green" style="flex:1" onclick="login()" data-i18n="login">Login</button><button class="btn" style="flex:1;background:#eee" onclick="closeM()" data-i18n="cancel">Cancel</button></div></div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script>
+// IMPORTANT: Put your Firebase project configuration here.
+const firebaseConfig={
+  apiKey:"AIzaSyA6lpUuP_8KHWzzP89ZIpmVts7ABuogGVw",
+  authDomain:"pet-spot-clinic.firebaseapp.com",
+  projectId:"pet-spot-clinic",
+  storageBucket:"pet-spot-clinic.firebasestorage.app",
+  messagingSenderId:"98732499537",
+  appId:"1:98732499537:web:878f3820f40a03151a8e70",
+  measurementId:"G-TY6N10TK80"
+};
+// Firebase can use its default Web Push key when no project-specific VAPID key is supplied.
+window.PETSPOT_FCM_VAPID_KEY="";
+firebase.initializeApp(firebaseConfig);
+const db=firebase.firestore();
+
+const defaultProducts=[
+{id:1,name:'Premium Dry Food',category:'Dry Food',price:450,stock:10,image:''},
+{id:2,name:'Chicken Dry Food',category:'Dry Food',price:520,stock:10,image:''},
+{id:3,name:'Puppy Food',category:'Dry Food',price:390,stock:10,image:''},
+{id:4,name:'Cat Treats',category:'Treats',price:125,stock:10,image:''},
+{id:5,name:'Pet Shampoo',category:'Hygiene',price:120,stock:10,image:''},
+{id:6,name:'Pet Nail Clipper',category:'Grooming',price:70,stock:10,image:''},
+{id:7,name:'Leather Leash',category:'Accessories',price:165,stock:10,image:''},
+{id:8,name:'Tick & Flea Collar',category:'Healthcare',price:195,stock:10,image:''},
+{id:9,name:'Pet Travel Carrier',category:'Accessories',price:320,stock:10,image:''},
+{id:10,name:'Training Pads Pack',category:'Hygiene',price:88,stock:10,image:''}
+];
+
+let products=defaultProducts.map(p=>({...p}));
+const savedProducts=JSON.parse(localStorage.getItem('petspotProducts')||'null');
+if(Array.isArray(savedProducts) && savedProducts.length){
+  savedProducts.forEach(sp=>{
+    const saved = Array.isArray(sp)
+      ? {id:Number(sp[0]),name:sp[1],category:sp[1],price:Number(sp[2]),stock:Number(sp[3]),image:sp[4]}
+      : sp;
+    const i=products.findIndex(p=>Number(p.id)===Number(saved.id));
+    if(i!==-1){
+      products[i]={...products[i],
+        name:saved.name??products[i].name,
+        category:saved.category??products[i].category,
+        price:Number(saved.price??products[i].price),
+        stock:Number(saved.stock??products[i].stock),
+        image:saved.image??products[i].image
+      };
+    }
+  });
+}
+let lang=localStorage.getItem('petspot_lang')||'en';
+let cart=JSON.parse(localStorage.getItem('petspotCart')||'[]');
+let orders=JSON.parse(localStorage.getItem('petspotOrders')||'[]');
+let selectedService='Veterinary Consultation';
+let editIndex=-1;
+let sharedStoreReady=false;
+let firebaseConfigured=!firebaseConfig.apiKey.startsWith('YOUR_') && !firebaseConfig.projectId.startsWith('YOUR_');
+let firebaseMessaging=null;
+let adminPushToken=null;
+let cloudBookings=[];
+let bookingsCloudReady=false;
+async function registerAdminPush(){
+  const status=document.getElementById('notificationStatusText');
+  const box=document.getElementById('notificationStatus');
+  const setStatus=(text,kind)=>{if(!status)return;status.textContent=text;if(box){box.style.background=kind==='ok'?'#e8f5ea':kind==='bad'?'#fdeaea':'#fff8df';box.style.color=kind==='ok'?'#063b16':kind==='bad'?'#8b1e1e':'#6b5600';box.style.borderColor=kind==='ok'?'#b8dfbf':kind==='bad'?'#f0b5b5':'#f0d77a'}};
+  if(!firebaseConfigured){setStatus(lang==='ar'?'Firebase غير مُعد.':'Firebase is not configured.','bad');return false;}
+  if(!('Notification' in window)){setStatus(lang==='ar'?'المتصفح لا يدعم الإشعارات.':'This browser does not support notifications.','bad');return false;}
+  if(!('serviceWorker' in navigator)){setStatus(lang==='ar'?'المتصفح لا يدعم Service Worker.':'This browser does not support Service Workers.','bad');return false;}
+  try{
+    if(Notification.permission==='denied'){
+      setStatus(lang==='ar'?'الإشعارات محظورة من إعدادات المتصفح.':'Notifications are blocked in browser settings.','bad');
+      return false;
+    }
+    setStatus(lang==='ar'?'جاري تفعيل الإشعارات…':'Enabling notifications…','wait');
+    let permission=Notification.permission;
+    if(permission==='default') permission=await Notification.requestPermission();
+    if(permission!=='granted'){
+      setStatus(lang==='ar'?'لم يتم السماح بالإشعارات.':'Notification permission was not granted.','bad');
+      return false;
+    }
+    const registration=await navigator.serviceWorker.register('/pet-spot-clinic/firebase-messaging-sw.js',{scope:'/pet-spot-clinic/'});
+    await navigator.serviceWorker.ready;
+    firebaseMessaging=firebase.messaging();
+    const options={serviceWorkerRegistration:registration};
+    if(window.PETSPOT_FCM_VAPID_KEY && !window.PETSPOT_FCM_VAPID_KEY.startsWith('YOUR_')) options.vapidKey=window.PETSPOT_FCM_VAPID_KEY;
+    const token=await firebaseMessaging.getToken(options);
+    if(!token)throw new Error('FCM token was not returned');
+    adminPushToken=token;
+    await db.collection('adminPushTokens').doc(token).set({token,enabled:true,role:'admin',updatedAt:new Date().toISOString(),userAgent:navigator.userAgent},{merge:true});
+    if(!window._petSpotOnMessageBound){
+      window._petSpotOnMessageBound=true;
+      firebaseMessaging.onMessage(payload=>{
+        const n=payload.notification||{};
+        if(Notification.permission==='granted') registration.showNotification(n.title||'Pet Spot Clinic',{body:n.body||'',icon:n.icon||'/pet-spot-clinic/icon-192.png',badge:n.badge||'/pet-spot-clinic/icon-192.png',data:payload.data||{}});
+      });
+    }
+    setStatus(lang==='ar'?'الإشعارات مفعّلة والجهاز مسجل كجهاز Admin.':'Notifications are enabled and this device is registered as an Admin device.','ok');
+    return true;
+  }catch(err){
+    console.error('FCM setup:',err);
+    setStatus((lang==='ar'?'تعذر تفعيل الإشعارات: ':'Could not enable notifications: ')+(err.message||'Unknown error'),'bad');
+    return false;
+  }
+}
+
+
+const AR={
+top:'✨ رعاية متميزة للحيوانات • عيادة بيطرية • جروومينج • إقامة • متجر حيوانات',home:'الرئيسية',services:'الخدمات',shop:'متجر الحيوانات',bookNav:'حجز موعد',myActivity:'حجوزاتي وطلباتي',about:'من نحن',contact:'اتصل بنا',admin:'الإدارة',open:'مفتوح 7 أيام في الأسبوع',hero1:'حيوانك الأليف',hero2:'منزله الثاني.',heroDesc:'رعاية بيطرية متميزة، جروومينج احترافي، إقامة، ومنتجات عالية الجودة للحيوانات الأليفة — كل ذلك تحت سقف واحد في القاهرة.',bookCta:'📅 حجز موعد',shopCta:'🛍 تسوق الآن',everything:'كل ما يحتاجه حيوانك الأليف.',vetCare:'الرعاية البيطرية',grooming:'جروومينج',boarding:'إقامة',why:'لماذا تختار بيت سبوت',homeTitle:'رعاية متكاملة لحيوانك الأليف تحت سقف واحد.',homeDesc:'خدمات احترافية، منتجات موثوقة، وفريق يعامل كل حيوان أليف كأنه فرد من العائلة.',vetClinic:'العيادة البيطرية',vetDesc:'كشوفات، تطعيمات، فحوصات، تشخيص ورعاية بيطرية متخصصة.',professionalGroom:'الجروومينج الاحترافي',groomDesc:'استحمام، قص شعر، تقليم أظافر وتنظيف الأذن والعناية المناسبة للسلالة.',petBoarding:'إقامة الحيوانات',boardDesc:'إقامة آمنة ومريحة مع متابعة مستمرة وإشراف.',shopDesc:'أطعمة، مكافآت، مكملات، ألعاب وإكسسوارات.',happyPets:'حيوان أليف سعيد',years:'سنوات من الخبرة',team:'فريق متخصص',products:'المنتجات',ready:'جاهزون للزيارة؟',family:'نعامل كل حيوان أليف كأنه فرد من العائلة.',ctaDesc:'احجز أول موعد لك واكتشف الفرق مع بيت سبوت.',bookNow:'احجز الآن',servicesEyebrow:'خدماتنا',servicesTitle:'رعاية احترافية من الأنف إلى الذيل.',servicesDesc:'اختر الخدمة التي يحتاجها حيوانك الأليف واحجز مباشرة عبر الموقع.',vetConsult:'استشارة بيطرية',vetConsultDesc:'كشوفات عامة، تطعيمات، فحوصات صحية، تشخيصات وغيرها.',groomDesc2:'استحمام، تجفيف، قص شعر، تقليم أظافر وتنظيف الأذن.',boardDesc2:'إقامة مريحة مع إشراف وبيئة مناسبة للحيوانات الأليفة.',shopDesc2:'أطعمة ومكافآت ومكملات وإكسسوارات مختارة بعناية.',book:'احجز',shopEyebrow:'متجر الحيوانات',shopTitle:'منتجات عالية الجودة لحيوانات أليفة سعيدة.',shopDescLong:'تصفح المنتجات وأضفها إلى السلة ثم أرسل طلبك.',bookEyebrow:'الحجز أونلاين',bookTitle:'حجز موعد',bookDesc:'احجز استشارة بيطرية أو جلسة جروومينج أو إقامة لحيوانك الأليف.',veterinary:'العيادة البيطرية',name:'اسمك *',phone:'رقم الهاتف *',petName:'اسم الحيوان *',petType:'نوع الحيوان',date:'التاريخ المفضل *',time:'الوقت المفضل *',selectTime:'اختر الوقت',notes:'ملاحظات إضافية',confirm:'📅 تأكيد الحجز',aboutEyebrow:'عن بيت سبوت',aboutTitle:'شريكك الموثوق للعناية المتميزة بالحيوانات الأليفة.',aboutDesc:'تجمع بيت سبوت العيادة البيطرية والجروومينج والإقامة ومتجر الحيوانات في مكان واحد في القاهرة.',aboutTeam:'فريق متخصص',aboutTeamDesc:'فريق محترف يركز على الأمان والرعاية والتعامل باحترام.',aboutProducts:'منتجات عالية الجودة',aboutProductsDesc:'أطعمة ومكملات وإكسسوارات مختارة بعناية.',aboutLocation:'موقع مناسب',aboutLocationDesc:'موقع سهل الوصول إليه في البساتين مع إمكانية الوصول ومواقف مناسبة.',aboutFirst:'الحيوان أولاً',aboutFirstDesc:'كل قراراتنا تبدأ براحة الحيوان وأمانه ورفاهيته.',contactEyebrow:'اتصل بنا',contactTitle:'زور بيت سبوت.',contactDesc:'نحن هنا لمساعدتك في الزيارة القادمة لحيوانك الأليف.',phoneTitle:'📞 الهاتف',call:'اتصل بنا',whatsapp:'واتساب',chat:'تواصل مباشرة مع بيت سبوت.',location:'📍 الموقع',hours:'🕒 مواعيد العمل',hoursDesc:'مفتوح 7 أيام في الأسبوع. تواصل مع العيادة لمعرفة مواعيد اليوم.',adminEyebrow:'لوحة تحكم الإدارة',adminTitle:'إدارة بيت سبوت',adminDesc:'تحكم في الحجوزات والطلبات وتوفر المنتجات من مكان واحد.',bookings:'الحجوزات',orders:'الطلبات',shopManager:'إدارة متجر الحيوانات',product:'المنتج',category:'الفئة',price:'السعر',stock:'المخزون',action:'الإجراء',cartTitle:'سلة المشتريات',total:'الإجمالي',placeOrder:'إرسال الطلب',adminLoginTitle:'دخول الإدارة',adminPasswordDesc:'أدخل كلمة مرور الإدارة للمتابعة.',login:'دخول',cancel:'إلغاء',quick:'روابط سريعة',footerDesc:'شريكك الموثوق للعناية المتميزة بالحيوانات الأليفة والمنتجات والخدمات الاحترافية في القاهرة.',rights:'جميع الحقوق محفوظة.',customerInfo:'بيانات العميل',customerInfoDesc:'اكتب بياناتك لإكمال الطلب.',address:'العنوان *',paymentMethod:'طريقة الدفع',cashPayment:'الدفع عند الاستلام (Cash)',cashPaymentDesc:'تدفع عند استلام الطلب.',visaPayment:'Visa / Mastercard',visaPaymentDesc:'دفع آمن عبر Paymob.',processingPayment:'جاري فتح صفحة الدفع الآمنة…',paymentSuccess:'تم الدفع بنجاح ✅ وتم تأكيد الطلب.',paymentFailed:'لم يتم تأكيد الدفع. إذا تم خصم المبلغ، لا تعيد الدفع واتصل بالعيادة.',paymentPending:'الدفع قيد التحقق. افتح طلباتي بعد قليل.',confirmOrder:'تأكيد الطلب',editProduct:'تعديل المنتج',productName:'اسم المنتج',imageUrl:'رابط صورة المنتج',save:'حفظ',available:'المتاح',quantity:'الكمية',orderedProducts:'المنتجات المطلوبة',deleteOrder:'حذف الطلب',delete:'حذف',newOrder:'جديد',noOrders:'لا توجد طلبات حتى الآن.'};
+
+const EN={};
+function buildReverse(){document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(!EN[k])EN[k]=el.textContent.trim()})}
+function tr(key){return lang==='ar'?(AR[key]||key):(EN[key]||key)}
+Object.assign(EN,{paymentMethod:'Payment method',cashPayment:'Cash on delivery',cashPaymentDesc:'Pay when your order is delivered.',visaPayment:'Visa / Mastercard',visaPaymentDesc:'Secure payment through Paymob.',processingPayment:'Opening secure payment…',paymentSuccess:'Payment successful ✅ Your order is confirmed.',paymentFailed:'Payment was not confirmed. If you were charged, do not pay again; contact the clinic.',paymentPending:'Payment is still being verified. Check My Orders in a moment.'});
+function saveCart(){localStorage.setItem('petspotCart',JSON.stringify(cart))}
+// Server-side FCM sender. The Worker reads every enabled token from
+// Firestore's adminPushTokens collection and sends the notification to all
+// registered Admin devices.
+const PETSPOT_FCM_WORKER_URL='https://pet-spot-fcm.youssefosama5901.workers.dev/notify';
+// Supported deletion events: booking_deleted_by_customer, booking_deleted_by_admin, order_deleted_by_customer, order_deleted_by_admin.
+// The Worker decides the destination: admin tokens for customer actions, customer token for admin actions.
+async function notifyPetSpot(type,data){
+  if(!firebaseConfigured)return null;
+  const payload={type,data};
+  console.log('Pet Spot notification request:',payload);
+  const response=await fetch(PETSPOT_FCM_WORKER_URL,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  });
+  const result=await response.json().catch(()=>({}));
+  console.log('Pet Spot notification response:',result);
+  if(!response.ok||result.ok===false){
+    throw new Error(result.error||('FCM worker HTTP '+response.status));
+  }
+  if(type.includes('deleted_by_customer') && result.telegram?.sent===0 && result.total===0){
+    throw new Error('Notification worker accepted the request but found no notification recipients.');
+  }
+  return result;
+}
+
+
+async function initSharedStore(){
+  if(!firebaseConfigured){
+    sharedStoreReady=true;
+    renderProducts();renderAdmin();renderCart();
+    return;
+  }
+  try{
+    const snap=await db.collection('products').get();
+    if(snap.empty){
+      const batch=db.batch();
+      defaultProducts.forEach(p=>batch.set(db.collection('products').doc(String(p.id)),p));
+      await batch.commit();
+    }
+    db.collection('products').onSnapshot(snapshot=>{
+      products=snapshot.docs.map(d=>d.data()).sort((a,b)=>a.id-b.id);
+      sharedStoreReady=true;
+      renderProducts();renderCart();renderAdmin();
+    },err=>console.error('Products listener:',err));
+    db.collection('orders').orderBy('createdAt','desc').onSnapshot(snapshot=>{
+      orders=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+      localStorage.setItem('petspotOrders',JSON.stringify(orders));
+      renderAdmin();
+    },err=>console.error('Orders listener:',err));
+    db.collection('bookings').orderBy('createdAt','desc').onSnapshot(snapshot=>{
+      cloudBookings=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+      bookingsCloudReady=true;
+      localStorage.setItem('petspotBookings',JSON.stringify(cloudBookings));
+      renderAdmin();
+      updateBookingTimes();
+    },err=>{
+      console.error('Bookings listener:',err);
+      bookingsCloudReady=false;
+    });
+  }catch(err){
+    console.error(err);
+    alert(lang==='ar'?'تعذر الاتصال بقاعدة البيانات المشتركة.':'Could not connect to the shared database.');
+    sharedStoreReady=false;
+  }
+}
+
+async function updateProductInCloud(i,changes){
+  const p=products[i];if(!p)return;
+  Object.assign(p,changes);
+  if(firebaseConfigured){
+    await db.collection('products').doc(String(p.id)).set(p,{merge:true});
+  }else{
+    // Keep Admin edits after refresh when Firebase is not configured.
+    localStorage.setItem('petspotProducts',JSON.stringify(products));
+  }
+  renderProducts();renderAdmin();
+}
+
+function applyLanguage(newLang){
+lang=newLang==='ar'?'ar':'en';localStorage.setItem('petspot_lang',lang);
+document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';
+document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;el.textContent=lang==='ar'?(AR[k]||el.textContent):(EN[k]||el.textContent)});
+document.querySelector('.lang').textContent=lang==='ar'?'English':'العربية';
+const input=document.querySelector('[name="petType"]');if(input)input.placeholder=lang==='ar'?input.dataset.phAr:input.dataset.phEn;
+renderProducts();renderAdmin();updateBookingTimes();renderCart();renderMyActivity();
+}
+function toggleLanguage(){applyLanguage(lang==='ar'?'en':'ar')}
+function go(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));const el=document.getElementById(id);if(el)el.classList.add('active');document.getElementById('mobile').style.display='none';window.scrollTo({top:0,behavior:'smooth'});if(id==='admin')renderAdmin(); if(id==='myActivity'){const input=document.getElementById('myPhone');if(input&&!input.value)input.value=localStorage.getItem('petspot_my_phone')||'';renderMyActivity()}}
+function menu(){const m=document.getElementById('mobile');m.style.display=m.style.display==='block'?'none':'block'}
+function service(btn){document.querySelectorAll('.choice').forEach(x=>x.classList.remove('sel'));btn.classList.add('sel');selectedService=btn.dataset.service;updateBookingTimes()}
+function getBookings(){
+  if(firebaseConfigured && bookingsCloudReady) return cloudBookings;
+  return JSON.parse(localStorage.getItem('petspotBookings')||'[]');
+}
+function setBookings(x){
+  cloudBookings=Array.isArray(x)?x:[];
+  localStorage.setItem('petspotBookings',JSON.stringify(cloudBookings));
+}
+function getBookedTimes(date){return getBookings().filter(x=>x.date===date).map(x=>x.time)}
+function updateBookingTimes(){const s=document.getElementById('bookingTime');if(!s)return;const current=s.value;const date=document.querySelector('[name="date"]')?.value;const booked=getBookedTimes(date);s.innerHTML='<option value="">'+tr('selectTime')+'</option>';for(let h=1;h<=10;h++){const v=String(h).padStart(2,'0')+':00';const opt=document.createElement('option');opt.value=v;opt.textContent=(lang==='ar'?'الساعة ':'Time ')+h+':00';if(booked.includes(v)){opt.disabled=true;opt.textContent+=' — '+(lang==='ar'?'محجوز':'Booked')}s.appendChild(opt)}if(current&&!booked.includes(current))s.value=current}
+async function booking(e){
+  e.preventDefault();
+  const f=new FormData(e.target);
+  const ownerPhone=normalizePhone(f.get('phone')); localStorage.setItem('petspot_my_phone',ownerPhone); const data={id:String(Date.now()),service:selectedService,name:f.get('name'),phone:f.get('phone'),ownerPhone,petName:f.get('petName'),petType:f.get('petType'),date:f.get('date'),time:f.get('time'),notes:f.get('notes')};
+  const bs=getBookings();
+  if(bs.some(x=>x.date===data.date&&x.time===data.time)){
+    alert(lang==='ar'?'هذا الموعد محجوز بالفعل. اختر موعدًا آخر.':'This time is already booked. Please choose another time.');
+    updateBookingTimes();
+    return;
+  }
+  try{
+    const createdAt=new Date().toISOString();
+    if(firebaseConfigured){
+      const bookingRecord={...data,createdAt};
+      await db.collection('bookings').doc(data.id).set(bookingRecord);
+      try{const notifyResult=await notifyPetSpot('booking',bookingRecord);console.log('Booking FCM notification sent:',notifyResult);}catch(notifyErr){console.error('Booking notification:',notifyErr);}
+    }else{
+      bs.push({...data,createdAt});
+      setBookings(bs);
+    }
+    document.getElementById('bookNotice').textContent=lang==='ar'?'تم إرسال الحجز بنجاح.':'Booking submitted successfully.';
+    document.getElementById('bookNotice').classList.add('show');
+    e.target.reset();
+    updateBookingTimes();
+    renderAdmin();
+  }catch(err){
+    console.error('Booking save:',err);
+    alert(lang==='ar'?'تعذر حفظ الحجز. حاول مرة أخرى.':'Could not save the booking. Please try again.');
+  }
+}
+
+function productName(n){const m={'Premium Dry Food':'طعام جاف فاخر','Chicken Dry Food':'طعام جاف بالدجاج','Puppy Food':'طعام جاف للجراء','Cat Treats':'مكافآت للقطط','Pet Shampoo':'شامبو للحيوانات','Pet Nail Clipper':'مقص أظافر للحيوانات','Leather Leash':'مقود جلدي','Tick & Flea Collar':'طوق ضد القراد والبراغيث','Pet Travel Carrier':'حقيبة نقل للحيوانات','Training Pads Pack':'فوط تدريب للحيوانات'};return lang==='ar'?(m[n]||n):n}
+function categoryName(n){const m={'Dry Food':'طعام جاف','Treats':'مكافآت','Hygiene':'العناية والنظافة','Grooming':'جروومينج','Accessories':'إكسسوارات','Healthcare':'رعاية صحية'};return lang==='ar'?(m[n]||n):n}
+
+function renderProducts(){
+const el=document.getElementById('products');if(!el)return;
+el.innerHTML=products.map((p,i)=>`<article class="product">
+<div class="visual"><img src="${escapeHtml(p.image||'')}" alt="${escapeHtml(productName(p.name))}" onerror="this.style.display='none';this.nextElementSibling.style.display='none'"><div style="display:${'${p.image}'?'none':'grid'};height:100%;place-items:center;color:var(--muted);font-weight:800;text-align:center;padding:20px">${escapeHtml(productName(p.name))}</div></div>
+<div class="body"><h3>${escapeHtml(productName(p.name))}</h3><p class="muted">${escapeHtml(categoryName(p.category))}</p>
+<div class="stockText">${tr('available')}: ${p.stock}</div>
+<div class="row"><span class="price">${p.price} EGP</span>${p.stock>0?`<button class="btn green" onclick="addCart(${i})">${lang==='ar'?'أضف إلى السلة':'Add to Cart'}</button>`:`<span class="out">${lang==='ar'?'غير متوفر':'Out of Stock'}</span>`}</div></div></article>`).join('')
+}
+
+function addCart(i){
+const p=products[i];if(!p||p.stock<=0)return;
+const existing=cart.find(x=>x.i===i);
+if(existing){if((existing.qty||1)>=p.stock){alert(lang==='ar'?'لا توجد كمية إضافية متاحة.':'No more quantity available.');return}existing.qty++}
+else cart.push({i,qty:1});
+saveCart();renderCart();document.getElementById('cart').classList.add('show')
+}
+function changeCartQty(index,change){
+const item=cart[index];if(!item)return;const p=products[item.i];const newQty=(item.qty||1)+change;
+if(newQty<=0)cart.splice(index,1);else if(newQty>p.stock){alert(lang==='ar'?'الكمية المطلوبة أكبر من المخزون.':'Requested quantity is greater than available stock.');return}else item.qty=newQty;
+saveCart();renderCart()
+}
+function removeCart(n){cart.splice(n,1);saveCart();renderCart()}
+function toggleCart(){document.getElementById('cart').classList.toggle('show')}
+
+function renderCart(){
+const box=document.getElementById('cartItems');if(!box)return;
+if(!cart.length){box.innerHTML='<p class="muted">'+(lang==='ar'?'السلة فارغة.':'Your cart is empty.')+'</p>';document.getElementById('total').textContent='0 EGP';return}
+let total=0;
+box.innerHTML=cart.map((x,n)=>{const p=products[x.i];if(!p)return '';const qty=x.qty||1;const subtotal=p.price*qty;total+=subtotal;
+return `<div class="cartItem"><div style="display:flex;align-items:center;gap:10px"><img src="${escapeHtml(p.image)}" onerror="this.src='https://via.placeholder.com/100?text=Pet'"><div><strong>${escapeHtml(productName(p.name))}</strong><div class="muted">${p.price} EGP</div></div></div><div style="text-align:center"><div class="qty"><button onclick="changeCartQty(${n},-1)">−</button><strong>${qty}</strong><button onclick="changeCartQty(${n},1)">+</button></div><div style="margin-top:5px;font-weight:900">${subtotal} EGP</div><button onclick="removeCart(${n})" style="border:0;background:none;color:#a33">${lang==='ar'?'حذف':'Remove'}</button></div></div>`}).join('');
+document.getElementById('total').textContent=total+' EGP'
+}
+
+function placeOrder(){
+if(!cart.length){alert(lang==='ar'?'السلة فارغة.':'Your cart is empty.');return}
+for(const x of cart){const p=products[x.i];if(!p||x.qty>p.stock){alert(lang==='ar'?'إحدى المنتجات لا تحتوي على الكمية المطلوبة.':'One of the products does not have enough stock.');renderProducts();renderCart();return}}
+const summary=document.getElementById('orderSummary');let total=0;
+summary.innerHTML=cart.map(x=>{const p=products[x.i],qty=x.qty||1,sub=p.price*qty;total+=sub;return `<div class="orderSummaryRow"><span>${escapeHtml(productName(p.name))} × ${qty}</span><b>${sub} EGP</b></div>`}).join('')+`<div class="orderSummaryRow" style="border-top:1px solid var(--line);margin-top:6px;padding-top:12px"><strong>${tr('total')}</strong><strong>${total} EGP</strong></div>`;
+document.getElementById('orderModal').classList.add('show')
+}
+function closeOrderModal(){document.getElementById('orderModal').classList.remove('show');document.getElementById('orderForm').reset()}
+const PETSPOT_PAYMOB_WORKER_URL='https://YOUR-PAYMOB-WORKER.workers.dev';
+let selectedPaymentMethod='cash';
+function selectPaymentMethod(method){selectedPaymentMethod=method==='visa'?'visa':'cash';document.querySelectorAll('.paymentChoice').forEach(el=>el.classList.remove('selected'));const active=document.getElementById(selectedPaymentMethod==='visa'?'visaPaymentChoice':'cashPaymentChoice');if(active)active.classList.add('selected')}
+function getOrderPayloadForPayment(){
+ const customer={name:document.getElementById('orderName').value.trim(),phone:document.getElementById('orderPhone').value.trim(),address:document.getElementById('orderAddress').value.trim()};
+ if(!customer.name||!customer.phone||!customer.address)throw new Error('CUSTOMER_REQUIRED');
+ customer.ownerPhone=normalizePhone(customer.phone);
+ const items=[];let total=0;
+ for(const x of cart){const p=products[x.i],qty=x.qty||1;if(!p)throw new Error('PRODUCT_NOT_FOUND');if(qty>p.stock)throw new Error('OUT_OF_STOCK');const subtotal=Number(p.price)*qty;total+=subtotal;items.push({productId:p.id,name:p.name,category:p.category,price:Number(p.price),quantity:qty,image:p.image,subtotal})}
+ return {customer,items,total};
+}
+async function startPaymobVisa(){
+ if(PETSPOT_PAYMOB_WORKER_URL.includes('YOUR-PAYMOB-WORKER'))throw new Error('PAYMOB_WORKER_URL_NOT_SET');
+ const payload=getOrderPayloadForPayment();const reference='ORD-'+Date.now().toString().slice(-10);
+ localStorage.setItem('petspot_pending_payment',JSON.stringify({reference,phone:payload.customer.ownerPhone}));
+ const response=await fetch(PETSPOT_PAYMOB_WORKER_URL+'/payment/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...payload,reference})});
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||!result.ok||!result.checkoutUrl)throw new Error(result.error||'PAYMOB_CREATE_FAILED');
+ window.location.href=result.checkoutUrl;
+}
+async function handlePaymobReturn(){
+ const params=new URLSearchParams(location.search);if(params.get('payment')!=='complete'||!params.get('ref'))return;
+ const ref=params.get('ref');history.replaceState({},document.title,location.pathname+location.hash);
+ if(PETSPOT_PAYMOB_WORKER_URL.includes('YOUR-PAYMOB-WORKER')){alert('PAYMOB_WORKER_URL_NOT_SET');return}
+ let status='pending';
+ for(let i=0;i<12;i++){try{const r=await fetch(PETSPOT_PAYMOB_WORKER_URL+'/payment/status?ref='+encodeURIComponent(ref));const d=await r.json().catch(()=>({}));status=d.status||'pending';if(status==='Paid'||status==='Failed')break}catch(err){console.error('Paymob status:',err)}await new Promise(resolve=>setTimeout(resolve,1500))}
+ localStorage.removeItem('petspot_pending_payment');
+ if(status==='Paid'){cart=[];saveCart();renderCart();renderProducts();renderAdmin();alert(tr('paymentSuccess'))}
+ else if(status==='Failed')alert(tr('paymentFailed'));
+ else alert(tr('paymentPending'));
+}
+
+async function submitOrder(e){
+ e.preventDefault();
+ if(firebaseConfigured&&!sharedStoreReady){alert(lang==='ar'?'انتظر لحظة حتى يتم تحميل المخزون المشترك.':'Please wait for the shared inventory to finish loading.');return}
+ if(!cart.length)return;
+ if(selectedPaymentMethod==='visa'){
+  const button=e.target.querySelector('button[type="submit"]');const oldText=button?.textContent;
+  try{if(button){button.disabled=true;button.textContent=tr('processingPayment')}await startPaymobVisa();return}
+  catch(err){console.error('Paymob Visa:',err);if(button){button.disabled=false;button.textContent=oldText||tr('confirmOrder')}
+   alert(err.message==='PAYMOB_WORKER_URL_NOT_SET'?'ضع رابط Cloudflare Worker في PETSPOT_PAYMOB_WORKER_URL داخل index.html أولاً.':(lang==='ar'?'تعذر بدء الدفع بالفيزا. حاول مرة أخرى.':'Could not start Visa payment. Please try again.'));return}
+ }
+ try{
+  const customer={name:document.getElementById('orderName').value.trim(),phone:document.getElementById('orderPhone').value.trim(),address:document.getElementById('orderAddress').value.trim()};
+  const ownerPhone=normalizePhone(customer.phone);customer.ownerPhone=ownerPhone;localStorage.setItem('petspot_my_phone',ownerPhone);
+  const orderRef=db.collection('orders').doc();const orderNumber='ORD-'+Date.now().toString().slice(-6);const orderCreatedAt=new Date().toISOString();
+  let orderItems=[];let total=0;
+  if(firebaseConfigured){
+   await db.runTransaction(async tx=>{
+    const docs={};for(const x of cart){const p=products[x.i];if(!p)throw new Error('PRODUCT_NOT_FOUND');if(!docs[p.id])docs[p.id]=await tx.get(db.collection('products').doc(String(p.id)))}
+    for(const x of cart){const p=products[x.i],snap=docs[p.id];if(!snap.exists)throw new Error('PRODUCT_NOT_FOUND');const cloud=snap.data(),qty=x.qty||1;if(cloud.stock<qty)throw new Error('OUT_OF_STOCK:'+cloud.name);const subtotal=cloud.price*qty;total+=subtotal;orderItems.push({productId:cloud.id,name:cloud.name,category:cloud.category,price:cloud.price,quantity:qty,image:cloud.image,subtotal});tx.update(snap.ref,{stock:cloud.stock-qty})}
+    tx.set(orderRef,{orderNumber,customer,items:orderItems,total,status:'New',paymentMethod:'Cash',paymentStatus:'Cash on delivery',createdAt:orderCreatedAt});
+   });
+  }else{
+   for(const x of cart){const p=products[x.i],qty=x.qty||1;if(!p||qty>p.stock)throw new Error('OUT_OF_STOCK');const sub=p.price*qty;total+=sub;orderItems.push({productId:p.id,name:p.name,category:p.category,price:p.price,quantity:qty,image:p.image,subtotal:sub});p.stock-=qty}
+   localStorage.setItem('petspotProducts',JSON.stringify(products));orders.unshift({id:String(Date.now()),orderNumber,customer,items:orderItems,total,status:'New',paymentMethod:'Cash',paymentStatus:'Cash on delivery',createdAt:orderCreatedAt});localStorage.setItem('petspotOrders',JSON.stringify(orders));
+  }
+  if(firebaseConfigured){try{const notifyResult=await notifyPetSpot('order',{orderNumber,customer,items:orderItems,total,status:'New',paymentMethod:'Cash',paymentStatus:'Cash on delivery',createdAt:orderCreatedAt});console.log('Order FCM notification sent:',notifyResult)}catch(notifyErr){console.error('Order notification:',notifyErr)}}
+  cart=[];saveCart();closeOrderModal();renderCart();renderProducts();renderAdmin();alert(lang==='ar'?'تم إرسال الطلب والدفع عند الاستلام.':'Order submitted with Cash on delivery.');
+ }catch(err){console.error(err);closeOrderModal();renderProducts();renderCart();alert(err.message&&err.message.startsWith('OUT_OF_STOCK')?(lang==='ar'?'الكمية المطلوبة لم تعد متاحة. المخزون اتغير لأن عميلًا آخر اشترى منها.':'That quantity is no longer available because another customer ordered it.'):(lang==='ar'?'حدث خطأ أثناء إرسال الطلب.':'There was an error submitting the order.'))}
+}
+function normalizePhone(value){return String(value||'').replace(/\D/g,'').replace(/^20/,'').replace(/^0/,'')}
+function renderMyActivity(){
+  const input=document.getElementById('myPhone'); const b=document.getElementById('myBookings'); const o=document.getElementById('myOrders'); if(!input||!b||!o)return;
+  const phone=normalizePhone(input.value);
+  if(!phone){b.innerHTML='<div class="my-empty">'+(lang==='ar'?'اكتب رقم هاتفك لعرض حجوزاتك.':'Enter your phone number to see your bookings.')+'</div>';o.innerHTML='<div class="my-empty">'+(lang==='ar'?'اكتب رقم هاتفك لعرض طلباتك.':'Enter your phone number to see your orders.')+'</div>';return;}
+  const bs=getBookings().filter(x=>normalizePhone(x.ownerPhone||x.phone)===phone);
+  const os=orders.filter(x=>normalizePhone(x.customer?.ownerPhone||x.customer?.phone)===phone);
+  b.innerHTML=bs.length?bs.map(x=>`<article class="my-item"><div class="my-item-head"><strong>${escapeHtml(serviceName(x.service))}</strong><span>${escapeHtml(x.date)} • ${escapeHtml(x.time)}</span></div><div class="my-meta"><div>${lang==='ar'?'الاسم':'Name'}: ${escapeHtml(x.name)}</div><div>${lang==='ar'?'الحيوان':'Pet'}: ${escapeHtml(x.petName)}${x.petType?' ('+escapeHtml(x.petType)+')':''}</div></div>${x.notes?`<div class="my-products">${lang==='ar'?'ملاحظات':'Notes'}: ${escapeHtml(x.notes)}</div>`:''}<button class="btn red" style="margin-top:12px" onclick="deleteMyBooking('${escapeHtml(x.id)}')">${lang==='ar'?'حذف الحجز':'Delete Booking'}</button></article>`).join(''):'<div class="my-empty">'+(lang==='ar'?'لا توجد حجوزات بهذا الرقم.':'No bookings found for this phone number.')+'</div>';
+  o.innerHTML=os.length?os.map(order=>`<article class="my-item"><div class="my-item-head"><strong>${escapeHtml(order.orderNumber||'Order')}</strong><strong>${order.total} EGP</strong></div><div class="my-meta"><div>${lang==='ar'?'التاريخ':'Date'}: ${new Date(order.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-US')}</div><div>${lang==='ar'?'الحالة':'Status'}: ${escapeHtml(order.status||'New')}</div></div><div class="my-products">${order.items.map(item=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0"><span>${escapeHtml(productName(item.name))} × ${item.quantity}</span><strong>${item.subtotal} EGP</strong></div>`).join('')}</div><button class="btn red" style="margin-top:12px" onclick="deleteMyOrder('${escapeHtml(order.id)}')">${lang==='ar'?'حذف الطلب':'Delete Order'}</button></article>`).join(''):'<div class="my-empty">'+(lang==='ar'?'لا توجد طلبات بهذا الرقم.':'No orders found for this phone number.')+'</div>';
+}
+
+async function deleteMyBooking(id){
+  const phone=normalizePhone(document.getElementById('myPhone')?.value||'');
+  const booking=getBookings().find(x=>String(x.id)===String(id));
+  if(!phone||!booking||normalizePhone(booking.ownerPhone||booking.phone)!==phone){alert(lang==='ar'?'لا يمكنك حذف هذا الحجز.':'You cannot delete this booking.');return;}
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الحجز؟':'Delete this booking?'))return;
+  try{
+    if(firebaseConfigured){
+      await db.collection('bookings').doc(String(id)).delete();
+      try{
+        await notifyPetSpot('booking_deleted_by_customer',{
+          booking,
+          deletedBy:'customer',
+          ownerPhone:normalizePhone(booking.ownerPhone||booking.phone),
+          deletedAt:new Date().toISOString()
+        });
+      }catch(notifyErr){console.error('Customer booking deletion notification:',notifyErr);alert(lang==='ar'?'تم حذف الحجز، لكن تعذر إرسال إشعار الإلغاء للأدمن.':'Booking deleted, but the cancellation notification could not be sent to the admin.');}
+    }else{
+      setBookings(getBookings().filter(x=>String(x.id)!==String(id)));
+    }
+    renderMyActivity();renderAdmin();updateBookingTimes();
+  }catch(err){console.error('Delete my booking:',err);alert(lang==='ar'?'تعذر حذف الحجز.':'Could not delete the booking.');}
+}
+
+async function deleteMyOrder(id){
+  const phone=normalizePhone(document.getElementById('myPhone')?.value||'');
+  const order=orders.find(x=>String(x.id)===String(id));
+  const owner=order?.customer?.ownerPhone||order?.customer?.phone;
+  if(!phone||!order||normalizePhone(owner)!==phone){alert(lang==='ar'?'لا يمكنك حذف هذا الطلب.':'You cannot delete this order.');return;}
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الطلب؟':'Delete this order?'))return;
+  try{
+    if(firebaseConfigured){
+      await db.collection('orders').doc(String(id)).delete();
+      try{
+        await notifyPetSpot('order_deleted_by_customer',{
+          order,
+          deletedBy:'customer',
+          ownerPhone:normalizePhone(owner),
+          deletedAt:new Date().toISOString()
+        });
+      }catch(notifyErr){console.error('Customer order deletion notification:',notifyErr);alert(lang==='ar'?'تم حذف الطلب، لكن تعذر إرسال إشعار الإلغاء للأدمن.':'Order deleted, but the cancellation notification could not be sent to the admin.');}
+    }else{
+      orders=orders.filter(x=>String(x.id)!==String(id));localStorage.setItem('petspotOrders',JSON.stringify(orders));
+    }
+    renderMyActivity();renderAdmin();
+  }catch(err){console.error('Delete my order:',err);alert(lang==='ar'?'تعذر حذف الطلب.':'Could not delete the order.');}
+}
+
+function renderAdmin(){
+const bs=getBookings();document.getElementById('ab').textContent=bs.length;document.getElementById('ap').textContent=products.length;document.getElementById('ao').textContent=orders.length;
+const box=document.getElementById('adminBookings');if(!box)return;
+box.innerHTML=!bs.length?'<p class="muted">'+(lang==='ar'?'لا توجد حجوزات حتى الآن.':'No bookings yet.')+'</p>':bs.map((x,i)=>`<article class="booking-card"><div class="booking-head"><strong>#${String(i+1).padStart(3,'0')} — ${escapeHtml(x.name)}</strong><span>${escapeHtml(serviceName(x.service))}</span></div><div class="booking-grid"><div><b>${lang==='ar'?'الهاتف':'Phone'}</b><br>${escapeHtml(x.phone)}</div><div><b>${lang==='ar'?'الحيوان':'Pet'}</b><br>${escapeHtml(x.petName)} (${escapeHtml(x.petType||'—')})</div><div><b>${lang==='ar'?'التاريخ':'Date'}</b><br>${escapeHtml(x.date)}</div><div><b>${lang==='ar'?'الوقت':'Time'}</b><br>${escapeHtml(x.time)}</div></div>${x.notes?`<div class="booking-notes"><b>${lang==='ar'?'ملاحظات':'Notes'}:</b> ${escapeHtml(x.notes)}</div>`:''}<button class="btn" style="margin-top:14px;background:#eee" onclick="deleteBooking(${x.id})">${tr('delete')}</button></article>`).join('');
+
+document.getElementById('rows').innerHTML=products.map((p,i)=>`<tr><td><div class="adminProduct"><img src="${escapeHtml(p.image)}"><strong>${escapeHtml(productName(p.name))}</strong></div></td><td>${escapeHtml(categoryName(p.category))}</td><td><input class="adminInput" type="number" min="0" value="${p.price}" onchange="updatePrice(${i},this.value)"> EGP</td><td><input class="adminInput" type="number" min="0" value="${p.stock}" onchange="updateStock(${i},this.value)"></td><td><button class="btn green" onclick="editProduct(${i})">${lang==='ar'?'تعديل':'Edit'}</button></td></tr>`).join('');
+renderAdminOrders()
+}
+
+function renderAdminOrders(){
+const box=document.getElementById('adminOrders');if(!box)return;
+if(!orders.length){box.innerHTML='<p class="muted">'+tr('noOrders')+'</p>';return}
+box.innerHTML=orders.map(order=>`<article class="booking-card">
+<div class="booking-head"><strong>${escapeHtml(order.orderNumber)}</strong><strong>${order.total} EGP</strong></div>
+<div class="booking-grid"><div><b>${lang==='ar'?'الاسم':'Name'}</b><br>${escapeHtml(order.customer.name)}</div><div><b>${lang==='ar'?'الهاتف':'Phone'}</b><br>${escapeHtml(order.customer.phone)}</div><div><b>${lang==='ar'?'العنوان':'Address'}</b><br>${escapeHtml(order.customer.address)}</div><div><b>${lang==='ar'?'التاريخ':'Date'}</b><br>${new Date(order.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-US')}</div></div>
+<div class="booking-notes"><b>${tr('orderedProducts')}</b>${order.items.map(item=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:10px"><img src="${escapeHtml(item.image)}" style="width:60px;height:60px;object-fit:cover;border-radius:10px"><div><strong>${escapeHtml(productName(item.name))}</strong><div class="muted">${tr('quantity')}: ${item.quantity}</div></div></div><strong>${item.subtotal} EGP</strong></div>`).join('')}</div>
+<button class="btn red" style="margin-top:15px" onclick="deleteOrder(${order.id})">${tr('deleteOrder')}</button>
+</article>`).join('')
+}
+
+async function updateStock(i,v){await updateProductInCloud(i,{stock:Math.max(0,parseInt(v)||0)})}
+async function updatePrice(i,v){await updateProductInCloud(i,{price:Math.max(0,Number(v)||0)})}
+function editProduct(i){const p=products[i];editIndex=i;document.getElementById('editIndex').value=i;document.getElementById('editName').value=p.name;document.getElementById('editPrice').value=p.price;document.getElementById('editStock').value=p.stock;document.getElementById('editImage').value=p.image;document.getElementById('editModal').classList.add('show')}
+function closeEditModal(){document.getElementById('editModal').classList.remove('show')}
+async function saveEditedProduct(e){e.preventDefault();const p=products[editIndex];await updateProductInCloud(editIndex,{name:document.getElementById('editName').value.trim()||p.name,price:Math.max(0,Number(document.getElementById('editPrice').value)||0),stock:Math.max(0,parseInt(document.getElementById('editStock').value)||0),image:document.getElementById('editImage').value.trim()||p.image});closeEditModal();}
+function serviceName(s){return lang==='ar'?({'Veterinary Consultation':'استشارة بيطرية','Grooming':'جروومينج','Boarding':'إقامة'}[s]||s):s}
+async function deleteBooking(id){
+  try{
+    const booking=getBookings().find(x=>String(x.id)===String(id));
+    if(!booking)return;
+    if(firebaseConfigured){
+      await db.collection('bookings').doc(String(id)).delete();
+      try{
+        await notifyPetSpot('booking_deleted_by_admin',{
+          booking,
+          deletedBy:'admin',
+          ownerPhone:normalizePhone(booking.ownerPhone||booking.phone),
+          deletedAt:new Date().toISOString()
+        });
+      }catch(notifyErr){console.error('Admin booking deletion notification:',notifyErr);alert(lang==='ar'?'تم حذف الحجز، لكن تعذر إرسال إشعار الإلغاء.':'Booking deleted, but the cancellation notification could not be sent.');}
+      renderAdmin();
+      updateBookingTimes();
+    }else{
+      setBookings(getBookings().filter(x=>String(x.id)!==String(id)));
+      renderAdmin();
+      updateBookingTimes();
+    }
+  }catch(err){
+    console.error('Delete booking:',err);
+    alert(lang==='ar'?'تعذر حذف الحجز.':'Could not delete the booking.');
+  }
+}
+async function deleteOrder(id){
+  if(!confirm(lang==='ar'?'هل تريد حذف هذا الطلب؟':'Delete this order?'))return;
+  const order=orders.find(x=>String(x.id)===String(id));
+  if(!order)return;
+  const ownerPhone=normalizePhone(order.customer?.ownerPhone||order.customer?.phone||'');
+  if(firebaseConfigured){
+    await db.collection('orders').doc(String(id)).delete();
+    try{
+      await notifyPetSpot('order_deleted_by_admin',{
+        order,
+        deletedBy:'admin',
+        ownerPhone,
+        deletedAt:new Date().toISOString()
+      });
+    }catch(notifyErr){console.error('Admin order deletion notification:',notifyErr);alert(lang==='ar'?'تم حذف الطلب، لكن تعذر إرسال إشعار الإلغاء.':'Order deleted, but the cancellation notification could not be sent.');}
+  }else{
+    orders=orders.filter(x=>String(x.id)!==String(id));
+    localStorage.setItem('petspotOrders',JSON.stringify(orders));
+    renderAdmin();
+  }
+}
+function adminLogin(){document.getElementById('modal').classList.add('show');document.getElementById('pass').focus()}
+function closeM(){document.getElementById('modal').classList.remove('show');document.getElementById('pass').value=''}
+function login(){
+  if(document.getElementById('pass').value==='211'){
+    closeM();
+    go('admin');
+    registerAdminPush();
+  }else alert(lang==='ar'?'كلمة المرور غير صحيحة':'Incorrect password.');
+}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+
+/* Keep WhatsApp as a direct child of BODY so no section/container can clip it. */
+(function keepWhatsAppFloating(){
+  function pinWhatsApp(){
+    const wa=document.getElementById('floatingWhatsapp');
+    if(!wa) return;
+    if(wa.parentElement !== document.body) document.body.appendChild(wa);
+    wa.style.setProperty('position','fixed','important');
+    wa.style.setProperty('right','10px','important');
+    wa.style.setProperty('left','auto','important');
+    wa.style.setProperty('top','auto','important');
+    wa.style.setProperty('bottom','calc(14px + env(safe-area-inset-bottom, 0px))','important');
+    wa.style.setProperty('z-index','2147483647','important');
+    wa.style.setProperty('transform','none','important');
+  }
+  pinWhatsApp();
+  window.addEventListener('scroll',pinWhatsApp,{passive:true});
+  window.addEventListener('resize',pinWhatsApp,{passive:true});
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',pinWhatsApp,{passive:true});
+    window.visualViewport.addEventListener('scroll',pinWhatsApp,{passive:true});
+  }
+  new MutationObserver(pinWhatsApp).observe(document.body,{childList:true,subtree:true});
+})();
+
+buildReverse();applyLanguage(lang);handlePaymobReturn();const savedMyPhone=localStorage.getItem('petspot_my_phone');if(savedMyPhone&&document.getElementById('myPhone'))document.getElementById('myPhone').value=savedMyPhone;renderMyActivity();
+initSharedStore();
+document.querySelector('[name="date"]').addEventListener('change',updateBookingTimes);
+document.querySelector('[name="time"]').addEventListener('change',function(){const d=document.querySelector('[name="date"]').value;if(d&&getBookedTimes(d).includes(this.value))this.value=''});
+</script>
+</body>
+</html>
