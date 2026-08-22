@@ -1,4 +1,5 @@
 // Navigation/bootstrap repair for Pet Spot Clinic.
+// Deployment refresh marker: 2026-08-22
 (function(){
   function boot(){
     try {
